@@ -1,0 +1,9 @@
+# Webcam demo lives on branch feature/face-recognition-demo, not main
+face-demo/
+
+.DS_Store
+.env
+*.env
+!.env.example
+.venv/
+__pycache__/

@@ -1,5 +1,8 @@
 # PROJECT_CONTEXT.md — Smart Glasses for Memory & Connection
 
+> **Superseded in part (2026-10-24):** `hub/PRD.md` (HackTX PRD, D4) now sets scope: Medication Routine is a P0 feature beside Familiar Faces, object help is roadmap, and the stack is Meta only (D5). Where this file disagrees on those points, the PRD and `hub/DECISIONS.md` win. The rest (thesis, privacy, judge answers) still stands.
+
+
 > **Purpose of this file:** Give coding agents and teammates a single source of truth for the product vision, hackathon storytelling, demo priorities, and constraints discussed so far. Read this before suggesting features, making architectural decisions, implementing flows, or writing the pitch.
 >
 > **Status:** Product direction and proposed demo, **not** a record of completed implementation. No repository, codebase, SDK integration, hardware access, or working capabilities were inspected in this conversation. Treat everything marked *planned* as unimplemented until verified in the repo.

@@ -45,6 +45,7 @@ import com.myst.core.Capability
 import com.myst.core.Label
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
+import com.myst.features.faces.WhoIsThisPhrase
 import com.myst.glasses.GlassesState
 
 @Composable
@@ -54,8 +55,10 @@ fun EnrollScreen(
     onUnregister: () -> Unit,
     onCapture: () -> Unit,
     onWhoIsThis: () -> Unit,
+    onListening: (Boolean) -> Unit,
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
+  val listening by viewModel.gateway.isListening.collectAsStateWithLifecycle()
   val glasses by viewModel.gateway.state.collectAsStateWithLifecycle()
   val camera by viewModel.gateway.capability.collectAsStateWithLifecycle()
   var mockOn by rememberSaveable { mutableStateOf(false) }
@@ -165,11 +168,28 @@ fun EnrollScreen(
             Text("${person.name} (${person.relationship.ifBlank { "—" }})")
           }
         }
-        Button(
-            onClick = onWhoIsThis,
-            enabled = glasses is GlassesState.Connected && !ui.identifying && !ui.capturing,
-        ) {
-          Text(if (ui.identifying) "Listening…" else "Who is this?")
+        CapabilityRow(WhoIsThisPhrase.capability)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Switch(
+              checked = listening,
+              enabled = glasses is GlassesState.Connected || listening,
+              onCheckedChange = onListening,
+          )
+          Text(
+              if (listening) "  Listening: say \"Who is this?\"" else "  Listen for \"Who is this?\"",
+              Modifier.weight(1f),
+          )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          Button(
+              onClick = onWhoIsThis,
+              enabled = glasses is GlassesState.Connected && !ui.identifying && !ui.capturing,
+          ) {
+            Text(if (ui.identifying) "Working…" else "Who is this?")
+          }
+          if (mockOn && listening) {
+            OutlinedButton(onClick = viewModel::simulateWhoIsThis) { Text("Simulate saying it") }
+          }
         }
         ui.lastWhisper?.let { w ->
           Text(

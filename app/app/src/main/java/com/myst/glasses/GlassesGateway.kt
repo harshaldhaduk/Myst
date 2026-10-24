@@ -49,8 +49,8 @@ interface GlassesGateway {
   fun startUnregistration(activity: Activity)
 
   /**
-   * New session per request, one photo, then shut down: camera.stop() then session.stop().
-   * DAT 1.0.1 has no session.removeCamera(); stopping the camera detaches it.
+   * One photo: camera.stop(), session.removeCamera(), then session.stop(). Uses a new session per
+   * request unless a listening session is open (only one session runs per device).
    */
   suspend fun capturePhoto(
       requestPermission: suspend (Permission) -> PermissionStatus,

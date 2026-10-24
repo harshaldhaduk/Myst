@@ -12,6 +12,7 @@ import com.myst.core.records.PhotoSource
 import com.myst.features.faces.FamiliarFaces
 import com.myst.features.faces.MockIdentity
 import com.myst.features.faces.WhisperResult
+import com.myst.features.faces.WhoIsThisPhrase
 import com.myst.glasses.AndroidTtsSpeaker
 import com.myst.glasses.CaptureResult
 import com.myst.glasses.CaptureTimings
@@ -59,6 +60,28 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   fun pickMockPerson(id: String?) = _ui.update { it.copy(mockPickId = id) }
 
+  /** Turns the spoken trigger on or off. Called from a tap (the mic permission needs a user action). */
+  fun setListening(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
+    if (!on) {
+      gateway.stopListening()
+      return
+    }
+    viewModelScope.launch {
+      val failure =
+          gateway.startListening(requestPermission) { text ->
+            if (WhoIsThisPhrase.matches(text)) whoIsThis(requestPermission)
+          }
+      _ui.update {
+        it.copy(message = failure?.let { f -> "Listening failed: $f" } ?: "Listening for \"Who is this?\"")
+      }
+    }
+  }
+
+  /** MOCK: makes the simulated glasses "hear" the phrase. Mock Device Kit only. */
+  fun simulateWhoIsThis() {
+    mockKit.simulateSpeech("Who is this?")?.let { f -> _ui.update { it.copy(message = f) } }
+  }
+
   fun whoIsThis(requestPermission: suspend (Permission) -> PermissionStatus) {
     if (_ui.value.identifying || _ui.value.capturing) return
     _ui.update { it.copy(identifying = true) }
@@ -69,6 +92,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   }
 
   override fun onCleared() {
+    gateway.stopListening()
     speaker.shutdown()
     super.onCleared()
   }

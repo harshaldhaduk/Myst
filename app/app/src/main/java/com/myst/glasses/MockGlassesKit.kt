@@ -44,6 +44,14 @@ class MockGlassesKit(private val context: Context) {
         )
   }
 
+  /** Returns null on success, or a reason. Works only while the app is listening. */
+  fun simulateSpeech(text: String): String? {
+    val speech = glasses?.services?.speech ?: return "Turn on simulated glasses first."
+    if (!speech.isListening) return "Turn on Listening first."
+    speech.simulateTranscription(text, true, 0.9f)
+    return null
+  }
+
   fun disable() {
     MockDeviceKit.getInstance(context).disable()
     glasses = null

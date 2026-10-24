@@ -9,6 +9,11 @@ import android.util.Log
 import androidx.exifinterface.media.ExifInterface
 import com.meta.wearable.dat.camera.Camera
 import com.meta.wearable.dat.camera.addCamera
+import com.meta.wearable.dat.camera.removeCamera
+import com.meta.wearable.dat.speech.Speech
+import com.meta.wearable.dat.speech.addSpeech
+import com.meta.wearable.dat.speech.removeSpeech
+import kotlinx.coroutines.Job
 import com.meta.wearable.dat.camera.types.PhotoData
 import com.meta.wearable.dat.camera.types.StreamConfiguration
 import com.meta.wearable.dat.camera.types.StreamState
@@ -118,47 +123,160 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
         }
       }
 
+  // MARK: - Listening (DAT Speech, experimental)
+
+  /** One open session with Speech attached; captures borrow it instead of opening their own. */
+  private class Listening(val session: OpenSession, val speech: Speech, val jobs: List<Job>)
+
+  private var listening: Listening? = null
+  private val _isListening = MutableStateFlow(false)
+  val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
+
+  /**
+   * Starts on-glasses speech recognition. [onFinalText] gets each final transcript; callers match
+   * the phrase and must not store or display other speech. Must follow a user action (the
+   * microphone permission request opens the Meta AI app).
+   */
+  suspend fun startListening(
+      requestPermission: suspend (Permission) -> PermissionStatus,
+      onFinalText: (String) -> Unit,
+  ): String? =
+      captureLock.withLock {
+        if (listening != null) return@withLock null
+        ensurePermission(Permission.MICROPHONE, requestPermission)?.let { return@withLock it.reason() }
+        val opened =
+            when (val o = openSession()) {
+              is Opened.Ok -> o.session
+              is Opened.Err -> return@withLock o.result.reason()
+            }
+        val added = opened.session.addSpeech()
+        val speech =
+            added.getOrNull()
+                ?: run {
+                  opened.close()
+                  return@withLock "Speech: ${added.describeError()}"
+                }
+        val jobs =
+            listOf(
+                scope.launch {
+                  speech.transcriptions.collect { result ->
+                    if (result != null && result.isFinal) onFinalText(result.text)
+                  }
+                },
+                // The wearer can end the session (hinges closed, glasses removed); stop cleanly.
+                scope.launch {
+                  opened.session.state.first { it == DeviceSessionState.STOPPED }
+                  stopListening()
+                },
+            )
+        val start = speech.start()
+        if (start.isFailure) {
+          jobs.forEach { it.cancel() }
+          runCatching { opened.session.removeSpeech() }
+          opened.close()
+          return@withLock "Speech: ${start.describeError()}"
+        }
+        listening = Listening(opened, speech, jobs)
+        _isListening.value = true
+        null
+      }
+
+  fun stopListening() {
+    val l = listening ?: return
+    listening = null
+    _isListening.value = false
+    l.jobs.forEach { it.cancel() }
+    runCatching { l.speech.stop() }
+    runCatching { l.session.session.removeSpeech() }
+    l.session.close()
+  }
+
+  // MARK: - Capture
+
+  private class OpenSession(val session: DeviceSession, val errorJob: Job) {
+    fun close() {
+      runCatching { session.stop() }.onFailure { Log.w(TAG, "session.stop failed", it) }
+      errorJob.cancel()
+    }
+  }
+
+  private sealed interface Opened {
+    data class Ok(val session: OpenSession) : Opened
+    data class Err(val result: CaptureResult) : Opened
+  }
+
+  /** A fresh session, started; sessions cannot be restarted once stopped. */
+  private suspend fun openSession(): Opened {
+    val created = Wearables.createSession(AutoDeviceSelector())
+    val session =
+        created.getOrNull()
+            ?: return Opened.Err(
+                created.errorOrNull()?.let(::mapSessionError)
+                    ?: CaptureResult.Failed(created.describeError()),
+            )
+    val sessionError = MutableStateFlow<DeviceSessionError?>(null)
+    val open = OpenSession(session, scope.launch { session.errors.collect { sessionError.value = it } })
+    session.start()
+    val started =
+        withTimeoutOrNull(SESSION_TIMEOUT_MS) {
+          combine(session.state, sessionError) { s, e -> s to e }
+              .first { (s, e) ->
+                e != null ||
+                    s == DeviceSessionState.STARTED ||
+                    s == DeviceSessionState.PAUSED ||
+                    s == DeviceSessionState.STOPPED
+              }
+        }
+    val failure =
+        when {
+          started == null -> CaptureResult.Failed("Session did not start within ${SESSION_TIMEOUT_MS}ms")
+          started.second != null -> mapSessionError(started.second!!)
+          started.first == DeviceSessionState.PAUSED -> CaptureResult.Paused
+          started.first == DeviceSessionState.STOPPED ->
+              CaptureResult.Failed("Session stopped before start")
+          else -> null
+        }
+    if (failure != null) {
+      open.close()
+      return Opened.Err(failure)
+    }
+    return Opened.Ok(open)
+  }
+
+  /** Null when granted; otherwise the outcome to return. */
+  private suspend fun ensurePermission(
+      permission: Permission,
+      requestPermission: suspend (Permission) -> PermissionStatus,
+  ): CaptureResult? {
+    val check = Wearables.checkPermissionStatus(permission)
+    val current = check.getOrNull() ?: return CaptureResult.Failed(check.describeError())
+    if (current != PermissionStatus.Granted && requestPermission(permission) != PermissionStatus.Granted) {
+      return CaptureResult.PermissionDenied
+    }
+    return null
+  }
+
   private suspend fun captureOnce(
       requestPermission: suspend (Permission) -> PermissionStatus,
   ): CaptureResult {
     val t0 = SystemClock.elapsedRealtime()
 
     // 1. Camera permission, granted per device in the Meta AI app.
-    val check = Wearables.checkPermissionStatus(Permission.CAMERA)
-    val current = check.getOrNull() ?: return CaptureResult.Failed(check.describeError())
-    if (current != PermissionStatus.Granted &&
-        requestPermission(Permission.CAMERA) != PermissionStatus.Granted) {
-      return CaptureResult.PermissionDenied
-    }
+    ensurePermission(Permission.CAMERA, requestPermission)?.let { return it }
     val tPermission = SystemClock.elapsedRealtime()
 
-    // 2. A fresh session for this one request; sessions cannot be restarted.
-    val created = Wearables.createSession(AutoDeviceSelector())
-    val session =
-        created.getOrNull()
-            ?: return created.errorOrNull()?.let(::mapSessionError)
-                ?: CaptureResult.Failed(created.describeError())
-    val sessionError = MutableStateFlow<DeviceSessionError?>(null)
-    val errorJob = scope.launch { session.errors.collect { sessionError.value = it } }
+    // 2. Reuse the listening session if there is one (one session per device), else open one.
+    val borrowed = listening?.session
+    val owned: OpenSession? =
+        if (borrowed != null) null
+        else
+            when (val o = openSession()) {
+              is Opened.Ok -> o.session
+              is Opened.Err -> return o.result
+            }
+    val session = (borrowed ?: owned!!).session
     var camera: Camera? = null
     try {
-      session.start()
-      val started =
-          withTimeoutOrNull(SESSION_TIMEOUT_MS) {
-            combine(session.state, sessionError) { s, e -> s to e }
-                .first { (s, e) ->
-                  e != null ||
-                      s == DeviceSessionState.STARTED ||
-                      s == DeviceSessionState.PAUSED ||
-                      s == DeviceSessionState.STOPPED
-                }
-          } ?: return CaptureResult.Failed("Session did not start within ${SESSION_TIMEOUT_MS}ms")
-      started.second?.let { return mapSessionError(it) }
-      when (started.first) {
-        DeviceSessionState.PAUSED -> return CaptureResult.Paused
-        DeviceSessionState.STOPPED -> return CaptureResult.Failed("Session stopped before start")
-        else -> Unit
-      }
       val tSession = SystemClock.elapsedRealtime()
 
       // 3. Camera stream, needed for stream.capturePhoto() (the non-experimental photo path).
@@ -212,12 +330,22 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
           ),
       )
     } finally {
-      // 5. Documented shutdown order for 1.0.1: camera, then session.
+      // 5. Documented shutdown order: camera.stop(), session.removeCamera(), then session.stop()
+      //    unless the session belongs to Listening, which keeps running.
       runCatching { camera?.stop() }.onFailure { Log.w(TAG, "camera.stop failed", it) }
-      runCatching { session.stop() }.onFailure { Log.w(TAG, "session.stop failed", it) }
-      errorJob.cancel()
+      if (camera != null) runCatching { session.removeCamera() }
+      owned?.close()
     }
   }
+
+  private fun CaptureResult.reason(): String =
+      when (this) {
+        is CaptureResult.Failed -> reason
+        CaptureResult.PermissionDenied -> "Permission not granted in the Meta AI app"
+        CaptureResult.CapabilityDenied -> "The glasses denied this capability (CAPABILITY_DENIED)"
+        CaptureResult.Paused -> "Glasses paused the session"
+        is CaptureResult.Ok -> "ok"
+      }
 
   private fun DatResult<*, *>.describeError(): String =
       errorOrNull()?.description ?: exceptionOrNull()?.message ?: "unknown error"

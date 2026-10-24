@@ -52,5 +52,6 @@ dependencies {
   implementation(libs.androidx.exifinterface)
   implementation(libs.mwdat.core)
   implementation(libs.mwdat.camera)
+  implementation(libs.mwdat.speech)
   implementation(libs.mwdat.mockdevice)
 }

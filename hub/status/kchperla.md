@@ -13,14 +13,15 @@ Lane choice is provisional: taken because this person has the phone and glasses.
 - First run sat on "put on your glasses / waiting for active device" while the glasses worked for voice; logcat showed Meta AI app channel open failures. It connected after the user wore the glasses and retried. Cause not isolated.
 - Glasses Bluetooth name: RB Meta 02WM (marketing model still to confirm).
 - Video recording works. Glasses mic over HFP (setCommunicationDevice bt_sco) gave a silent clip once, with no AudioRecord start in the log, then a clip with sound on the next try. One pair of runs; unexplained. Wait for the recording-started signal before listening.
-- Not yet measured: photo capture time, A2DP playback to the glasses, Muse call, latency.
+- Photo capture: about 0.5 s from tap to capture and 1 to 2 s more to display it in the sample (user's estimate by feel, not a timed median). Phone audio plays out of the glasses (A2DP), user-confirmed, not timed.
+- Not yet measured: timed capture median, Muse call, end-to-end latency.
 
 **In flight**
 - Spike from hub/LOOP.md section 5, step 1: build the DAT Android sample and run it with Mock Device Kit, then on the real glasses.
 
 **Blocked, or need from someone**
 - Exact glasses model not yet recorded (Q1). Developer mode is reported on by the user; not yet verified in the app.
-- Muse Spark API key (goes in an ignored .env) for spike step 5.
+- Muse Spark API key for spike step 5: goes in ignored .env (MUSE_API_KEY, empty file created); where hackathon credits are issued is unknown.
 - Human call on Q3 (trigger, Android TTS under D5) and Q10 (scope conflict).
 
 **Files I am working in right now**

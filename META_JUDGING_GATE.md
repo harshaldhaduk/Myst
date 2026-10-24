@@ -1,6 +1,6 @@
 # META_JUDGING_GATE.md — 100% Rubric-Coverage Contract
 
-> **Read with `PROJECT_CONTEXT.md` before making any product, engineering, UX, pitch, or demo decision.**
+> **Read with `PROJECT_CONTEXT.md` before making any product, engineering, UX, pitch, or demo decision.** For G06 and A5 (verified platform facts, which Meta tools are real), start from `hub/META_SUITE.md`; it records what Meta's docs say and what still needs a device.
 >
 > **Agent directive:** This document is a release gate, not inspiration. **Do not mark the project `JUDGING-READY` until every required gate below has evidence and passes.** If a requirement is not implemented, cannot be verified, or is simulated but presented as real, mark it **FAIL / NOT VERIFIED**, report the blocker, and fix it or explicitly narrow the claim. Never invent evidence, scores, SDK capabilities, statistics, user impact, or API usage.
 >

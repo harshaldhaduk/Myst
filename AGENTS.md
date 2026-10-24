@@ -1,6 +1,6 @@
 # Myst: shared agent rules
 
-**Hub v1.** Before working, read this file, `PROJECT_CONTEXT.md`, `hub/DECISIONS.md`, `hub/PRD.md`, `hub/BUILDING.md`, and `hub/status/`. Start the first reply in a session with `[hub v1]`. These instructions govern coding agents editing the repository, not the assistant running on the glasses.
+**Hub v2.** Before working, read this file, `PROJECT_CONTEXT.md`, `hub/DECISIONS.md`, `hub/PRD.md`, `hub/BUILDING.md`, `hub/META_SUITE.md`, `hub/LOOP.md`, and `hub/status/`. Start the first reply in a session with `[hub v2]`. These instructions govern coding agents editing the repository, not the assistant running on the glasses.
 
 Myst, Meta track hackathon (HackTX 2026): an Android app paired to Ray-Ban Meta glasses for people with early to mid-stage dementia living at home. Two features: Familiar Faces (recognize consenting loved ones and recall trusted shared context) and Medication Routine (guide a dose, alert the caregiver). Judging is assumed to weight a cohesive story and a truthful working demo heavily; that is a team assumption, not a published rubric.
 
@@ -8,10 +8,10 @@ Myst, Meta track hackathon (HackTX 2026): an Android app paired to Ray-Ban Meta 
 
 **The entire stack is Meta: Ray-Ban Meta glasses, the Wearables Device Access Toolkit (DAT), the Muse Spark API and the WhatsApp Cloud API, with Android as the DAT host OS. Nothing else** (D3, D5). No third-party face-recognition service, vision model, LLM provider, cloud backend, database service or SDK. Everything the product does must be built from what Meta's developer tools actually expose. Not allowed: on-device OCR, face-blur or face-match libraries, FCM, outside SDKs (call Muse Spark over plain HTTPS).
 
-- Before any technical work, read the current Meta wearables developer docs and Muse documentation and record what is available, in the PRD's capability table.
+- Before any technical work, read `hub/META_SUITE.md` (what Meta provides: glasses, DAT, Model API, WhatsApp, policy, with evidence labels) and `hub/LOOP.md` (the glasses-phone-Muse loop and its spike). Then re-check the live Meta docs for anything you are about to build on, and record what is available in the PRD's capability table. Search current DAT docs through Meta's Wearables MCP (`https://mcp.developer.meta.com/wearables`, tool `search_dat_docs`).
 - If a capability is not available through Meta/Muse (for example, face matching or camera-frame access), it is **blocked**, not a gap to fill with an outside tool. Surface it to the human, then either redesign around what Meta offers, label it a scripted mock, or move it to roadmap.
 - Do not add a dependency, API key, container or hosted service from outside Meta's tooling without a human-accepted decision that changes this rule.
-- `face-demo/` (webcam, MediaPipe, CompreFace) predates this rule and lives only on branch `feature/face-recognition-demo`, not `main`. It is outside the stack: do not extend it, copy its approach into the product, or cite it as evidence of capability. A human decides whether to keep, archive or remove it.
+- `face-demo/` (webcam, MediaPipe, CompreFace) is retired (D10). It survives only as an unmerged archive on branch `feature/face-recognition-demo`, outside the stack: do not recreate it, extend it, copy its approach into the product, or cite it as evidence of capability.
 
 ## Current system and direction
 
@@ -21,7 +21,7 @@ No glasses or Muse integration exists yet. Direction is `hub/PRD.md` (D4, Propos
 
 1. Accepted decisions in `hub/DECISIONS.md`, newest applicable entry first.
 2. `PROJECT_CONTEXT.md` for the product thesis, demo story and constraints; `hub/PRD.md` for requirements and status.
-3. Meta's and Muse's own current documentation for what the platform can do.
+3. `hub/META_SUITE.md` and `hub/LOOP.md` for what the platform provides (read from Meta's docs, not yet run on a device), then Meta's and Muse's own current documentation, which wins if it differs.
 4. This file and `hub/BUILDING.md` for collaboration and implementation rules.
 5. Actual current code for what is implemented, plus recorded verification on real hardware.
 
@@ -36,7 +36,7 @@ Status files identify active work; chat recollections do not establish current b
 
 ## Reuse before rebuilding
 
-**Inspect what Meta and Muse already provide before writing anything.** Read the SDK and docs for camera, audio, triggers, assistant and any recognition or memory features. Use the platform's implementation when it fits; do not hand-roll a substitute.
+**Inspect what Meta and Muse already provide before writing anything.** Start with `hub/META_SUITE.md`, then the SDK and docs for camera, audio, triggers, assistant and any recognition or memory features. Use the platform's implementation when it fits; do not hand-roll a substitute.
 
 Custom code is for missing product behavior built on Meta tools: consent and enrollment flow, the relationship-memory content, the response composer (uncertainty handling), demo reset, and a record separating real sensor output from mocks. A new wrapper name alone is not a new capability.
 
@@ -47,7 +47,9 @@ Custom code is for missing product behavior built on Meta tools: consent and enr
 - Label every demo element as live (real Meta/Muse capability), mock (scripted), or roadmap. A mock must never be presented as working. Do not claim Muse, SDK, battery, latency or accuracy abilities that were not verified on the actual device.
 - Not medical: no diagnosis, treatment, fall detection or emergency response. Medication (D6): Myst may compare a held bottle to the caregiver's record, speak caregiver-entered counts and log a dose as "reported taken". It never advises on dosing, never infers a count, and a log is not proof a medicine was taken. A false "yes" on a wrong bottle is a stop condition. Never quiz or correct the wearer.
 - No frames, faces or audio are retained. Identity data stays on the phone.
-- Face identification is restricted by Meta's acceptable use policy without an approved accessibility exception. Keep identity behind one interface and treat it as a labeled mock until the exception is confirmed (D7).
+- Face identification is restricted by Meta's acceptable use policy without an approved accessibility exception (exact wording, approval status and the missing request channel: `hub/META_SUITE.md` section 6). Keep identity behind one interface and treat it as a labeled mock until a human records written approval (D7).
+- Muse and personal data: use Standard-mode models only (never the `-contributor` variants, which let Meta train on the content), send a frame only when the wearer triggered it, never persist it, and never send a frame that shows a person until Q12 is answered.
+- DAT features marked experimental (Speech, Inputs, Voice Invocations, Audio Streaming, standalone photo capture) are for testing only under Meta's terms. Use them for the hackathon but label them experimental in the demo and code.
 - Face photos, embeddings and family memories are personal data: never commit them. Use fictional demo data (Margaret, Robert, Daniel) unless a teammate has consented.
 
 ## Scope, contracts and secrets
@@ -67,6 +69,6 @@ Direction and rule edits need human authorization or the lane's delegated PRD se
 
 If subagents or other workers are used, include this at the start of their task:
 
-> Read AGENTS.md, PROJECT_CONTEXT.md, hub/DECISIONS.md, hub/PRD.md and hub/BUILDING.md first. The stack is Meta and Muse tools only. Your lane is <lane>; your files are <paths>. Do not edit hub/; report findings to the parent.
+> Read AGENTS.md, PROJECT_CONTEXT.md, hub/DECISIONS.md, hub/PRD.md, hub/BUILDING.md, hub/META_SUITE.md and hub/LOOP.md first. The stack is Meta and Muse tools only. Your lane is <lane>; your files are <paths>. Do not edit hub/; report findings to the parent.
 
 Only the top-level agent edits hub files. Tool entrypoints such as CLAUDE.md and GEMINI.md point here; keep rules in this file rather than copying them.

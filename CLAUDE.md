@@ -7,3 +7,5 @@ The team's rules live in `AGENTS.md` so every tool shares one copy. Read the fil
 @hub/DECISIONS.md
 @hub/PRD.md
 @hub/BUILDING.md
+@hub/META_SUITE.md
+@hub/LOOP.md

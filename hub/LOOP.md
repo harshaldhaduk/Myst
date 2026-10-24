@@ -1,5 +1,7 @@
 # The loop: glasses -> phone -> Muse -> glasses
 
+> **Refined by `hub/META_SUITE.md` (2026-10-24, D11).** Meta's own docs now confirm or change these points: (1) the Meta Model API docs are read: Muse Spark does images, structured output and tools, and Muse Voice Transcribe is confirmed (speech to text only; there is no Muse text-to-speech); (2) DAT 1.0 has Voice Invocations ("Hey Meta, start <app>", launch only), Inputs (button events, needs Meta approval) and experimental Speech, so "no button or voice event" in section 4 is out of date, though custom commands such as "who is this" still do not exist; (3) photo capture returns Bitmap or HEIC and standalone capture is experimental; (4) the $50 credit figure is the track's, not Meta's pricing page. The loop and the spike below stand.
+
 Everything else (faces, assistant, objects, medication) rides on this. Status: **docs read 2026-10-24, nothing run on a device.** Sources are Meta's Wearables Device Access Toolkit (DAT) docs unless marked "third-party"; treat third-party items as unverified. Proposed as D9.
 
 ## 1. The path

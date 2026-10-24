@@ -17,30 +17,30 @@ It is a presence problem, not a data problem: the family already knows the sched
 |---|---|
 | Product thesis, demo story, judge answers | `PROJECT_CONTEXT.md`. Direction only. |
 | Team hub and rules | `AGENTS.md`, `hub/`. |
-| Webcam demo (MediaPipe + CompreFace) | Branch `feature/face-recognition-demo` only, not on `main`. Outside the Meta-only stack (Q7); not evidence of any glasses capability. |
+| Webcam demo (MediaPipe + CompreFace) | Retired (D10). Unmerged archive on branch `feature/face-recognition-demo`; outside the Meta-only stack and not evidence of any glasses capability. |
 
 No Meta integration has been built or verified.
 
-## 2. Capability table (fill in from Meta docs, then the device)
+## 2. Capability table (docs read, device pending)
 
-"PRD claim" means the pasted PRD's cited sources say so; we have not read the docs or tried the device. Nothing below is verified.
+Filled from Meta's official docs on 2026-10-24; full detail, quotes and sources in `hub/META_SUITE.md` (D11). "Docs read" means Meta's page says so. **Nothing below has been run on a device**, so none of it is verified until a status file and `AGENTS.md` record a real-device result. "Proposed treatment" is for a human to accept.
 
 | Need | Meta status | Demo treatment |
 |---|---|---|
-| Glasses model and developer access | PRD claim: Ray-Ban Meta via DAT (Android, developer mode, Mock Device Kit). Exact model unknown. | |
-| Camera frame access | Docs read: DAT video stream (360x640 to 720x1280, 2 to 30 fps, limited by Bluetooth Classic) and single photo capture. Not run on a device. See `hub/LOOP.md`. | |
-| Audio output to wearer | Docs read: not a DAT API. Glasses are a Bluetooth headset (A2DP), so normal Android audio plays on them. Not run on a device. | |
-| Speech out (text to speech) | No Muse TTS found. Android's own TTS is the OS, not Meta (Q3). | |
-| Speech in ("Who is this?", "Done") | Docs read: mic via Bluetooth HFP (8/16 kHz mono, Android 12+), and it forces output to voice quality while active. Muse Voice Transcribe exists per third-party sources only. | |
-| Voice or button trigger | Docs read: custom Hey Meta commands are not in the toolkit and no glasses button event is documented. Trigger is open (Q3). | |
-| Person identification | Policy-restricted: Meta AUP bars face identification without an approved accessibility exception. No Meta matching API known. Blocked pending the Meta judges' answer (D7). | |
-| Family memory storage | Caregiver-entered records on the phone (app logic, no outside service). | |
-| Label reading / bottle check | PRD claim: Muse Spark reads a label from an image. On-device OCR is not a Meta tool and is out (D5). | |
-| Muse Spark API access | PRD claim: US public preview, OpenAI-compatible HTTP API. Call it with plain HTTPS, not a third-party SDK. | |
-| Dose-time scheduling | Android alarms (host OS). Confirm it is acceptable under D5. | |
-| Caregiver alerts | WhatsApp Cloud API proposed (D5). Android push (FCM) is not Meta. | |
-| Face blur before Muse Spark | unknown: no Meta tool known. Alternative: send only close-up bottle frames. | |
-| Object recognition, saved locations | Roadmap (D8). | |
+| Glasses model and developer access | Docs read: DAT lists Ray-Ban Meta Gen 1/2, Ray-Ban Meta Optics, Meta glasses, Meta Ray-Ban Display, Oakley Meta HSTN and Vanguard; DAT 1.0.1 needs Meta AI app V292 and glasses firmware V128; Developer Mode allows one registered third-party app at a time. Our exact model is open (Q1). | Live once Q1 is answered |
+| Camera frame access | Docs read: DAT video stream (360x640 to 720x1280, 2 to 30 fps, limited by Bluetooth Classic) and single photo capture. Not run on a device. See `hub/LOOP.md`. Photo formats are Bitmap or HEIC; standalone high-quality capture is experimental. | Live; one photo per request |
+| Audio output to wearer | Docs read: not a DAT API. Glasses are a Bluetooth headset (A2DP), so normal Android audio plays on them. Not run on a device. | Live |
+| Speech out (text to speech) | Docs read: Meta's Model API has no text-to-speech ("does not synthesize speech"). Android's own TTS is the OS, not Meta (Q11). | Needs Q11: OS TTS, or pre-recorded clips labeled mock |
+| Speech in ("Who is this?", "Done") | Docs read: mic via Bluetooth HFP (8/16 kHz mono, Android 12+), and it forces output to voice quality while active. Docs read: Muse Voice Transcribe exists (realtime WebSocket, 16/24 kHz PCM, $0.18 per audio hour, speech to text only). DAT also has an experimental on-device Speech capability. | Live |
+| Voice or button trigger | Docs read: custom Hey Meta commands are not in the toolkit and no glasses button event is documented. Update, docs read: DAT 1.0 Voice Invocations launches the app on "Hey Meta, start <app name>" (launch only, gated by Developer Center setup, reported flaky in Developer Mode); Inputs exposes button events but needs Meta approval; experimental Speech can hear a phrase inside a session. Trigger is open (Q3). | Pick in Q3; keep a labeled demo control (R15) |
+| Person identification | Policy-restricted: Meta AUP bars face identification without an approved accessibility exception. No Meta matching API known. Docs read: AUP updated 2026-09-22 bars unique identification of people by face or voice except with prior Meta approval (accessibility apps named); no documented request channel. Blocked pending the Meta judges' answer (D7); details in `hub/META_SUITE.md` section 6. | Labeled mock behind one interface until written approval |
+| Family memory storage | Caregiver-entered records on the phone (app logic, no outside service). | Live |
+| Label reading / bottle check | Docs read: Muse Spark takes images (up to 50 per request, JPEG/PNG/WebP) and extracts text; structured JSON output is supported. Accuracy on our bottles is unknown. On-device OCR is out (D5). | Live after the 20-frame test (check 3); two independent reads with structured output (Q4) |
+| Muse Spark API access | Docs read: `https://api.meta.ai/v1`, bearer key from the dashboard, OpenAI- and Anthropic-compatible; July 2026 coverage says US-only preview, the Connect recap says globally available. Call it with plain HTTPS, not a third-party SDK. Standard mode only, never `-contributor` (Q12). | Live; confirm our key works |
+| Dose-time scheduling | Android alarms (host OS). Confirm it is acceptable under D5. | Live (OS feature) |
+| Caregiver alerts | WhatsApp Cloud API proposed (D5). Android push (FCM) is not Meta. Docs read: sending needs an approved template outside the 24-hour window and a server-side token (Q13). | Live or mock per Q13 |
+| Face blur before Muse Spark | unknown: no Meta tool known. Alternative: send only close-up bottle frames, never faces. | Close-up bottle frames only |
+| Object recognition, saved locations | Roadmap (D8). SAM 3.1 and Muse Spark grounding exist. | Roadmap |
 
 A capability Meta does not expose is blocked, a labeled mock, or roadmap. It is never replaced with an outside tool.
 

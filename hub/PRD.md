@@ -28,11 +28,11 @@ No Meta integration has been built or verified.
 | Need | Meta status | Demo treatment |
 |---|---|---|
 | Glasses model and developer access | PRD claim: Ray-Ban Meta via DAT (Android, developer mode, Mock Device Kit). Exact model unknown. | |
-| Camera frame access | PRD claim: DAT streams glasses camera to the app. | |
-| Audio output to wearer | PRD claim: DAT exposes glasses speaker. | |
-| Speech out (text to speech) | unknown: which Meta tool produces the voice. | |
-| Speech in ("Who is this?", "Done") | unknown: mic is exposed by DAT (PRD claim); which Meta tool transcribes is not. | |
-| Voice or button trigger | unknown: whether DAT delivers glasses button or wake-word events to apps. | |
+| Camera frame access | Docs read: DAT video stream (360x640 to 720x1280, 2 to 30 fps, limited by Bluetooth Classic) and single photo capture. Not run on a device. See `hub/LOOP.md`. | |
+| Audio output to wearer | Docs read: not a DAT API. Glasses are a Bluetooth headset (A2DP), so normal Android audio plays on them. Not run on a device. | |
+| Speech out (text to speech) | No Muse TTS found. Android's own TTS is the OS, not Meta (Q3). | |
+| Speech in ("Who is this?", "Done") | Docs read: mic via Bluetooth HFP (8/16 kHz mono, Android 12+), and it forces output to voice quality while active. Muse Voice Transcribe exists per third-party sources only. | |
+| Voice or button trigger | Docs read: custom Hey Meta commands are not in the toolkit and no glasses button event is documented. Trigger is open (Q3). | |
 | Person identification | Policy-restricted: Meta AUP bars face identification without an approved accessibility exception. No Meta matching API known. Blocked pending the Meta judges' answer (D7). | |
 | Family memory storage | Caregiver-entered records on the phone (app logic, no outside service). | |
 | Label reading / bottle check | PRD claim: Muse Spark reads a label from an image. On-device OCR is not a Meta tool and is out (D5). | |

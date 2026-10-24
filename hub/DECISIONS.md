@@ -17,11 +17,12 @@ When the team answers one, delete it here and log the answer below as a decision
 
 - **Q1. Hardware and SDK.** Exact Ray-Ban Meta model we have, and does it work with the Wearables Device Access Toolkit? PRD says Ray-Ban Meta via DAT; not verified.
 - **Q2. Recognition.** Do the Meta judges say a consented, on-request family face match qualifies for the accessibility exception (D7)? If not, what is Plan B, and is it Meta-only or a labeled mock?
-- **Q3. Trigger and speech.** Does DAT deliver "Who is this?" voice or glasses-button events to apps? Which Meta tool does speech out and speech in?
+- **Q3. Trigger and speech.** Docs read (`hub/LOOP.md`): no documented glasses button event or custom voice command for apps; no Muse text-to-speech found; Muse Voice Transcribe exists per third-party sources. Which trigger do we use, and is Android's built-in TTS acceptable under D5?
 - **Q4. Bottle check.** On-device OCR is out (D5). What Meta-only rule counts as "agreement" for R7?
 - **Q6. Name and tagline.** The PRD title reads "Myst (Now Myst)", which is ambiguous. Is "Myst" final?
 - **Q7. `face-demo/`.** It lives only on branch `feature/face-recognition-demo`, not on `main`. Keep as a branch, archive or delete?
 - **Q8. PRD cleanup for RJ.** Undefined priorities (P3, P4, "?"), missing R18, truncated R12, R3 at P2 although R1/R2/R4 need identity, R5 (no retention) at P3, R16 vs R13 alert overlap. See `hub/PRD.md` hub notes.
+- **Q10. Conflicting scope docs.** `META_JUDGING_GATE.md` (teammate) puts identity first and medication in P2/roadmap; the PRD (RJ) makes Medication Routine P0 and the gate doc says Meta APIs are "encouraged, not required" while D5 says Meta only. Which is the controlling scope? Until a human decides, build the loop (`hub/LOOP.md`), which both need.
 - **Q9. Face blur and water detection.** R5 blur and R9 water check have no known Meta tool. Drop, mock or redesign?
 
 ## Log
@@ -65,3 +66,8 @@ When the team answers one, delete it here and log the answer below as a decision
 **Decision:** Object finding moves to roadmap and passive approach whispering (R19) stays off and optional.
 **Why:** The PRD has no object-help requirement, and passive scanning conflicts with the on-request consent rule.
 **Affects:** `AGENTS.md`; `hub/IDEAS.md`; the demo scope.
+
+### D9 · Proposed · 15:40 · Claude Code
+**Decision:** The core loop is: one Android session per request, one DAT photo capture, HTTPS to Muse Spark, answer spoken through the phone's normal audio output to the glasses over Bluetooth A2DP. The mic uses HFP only when needed. Prove it with the spike in `hub/LOOP.md` before building any feature on top.
+**Why:** Meta's docs give camera access through DAT and audio only through standard Bluetooth profiles, and DAT sessions are fragile, so short single-shot sessions are the safest path.
+**Affects:** all lanes; PRD capability table; R1 latency target; Q3.

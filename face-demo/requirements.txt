@@ -1,0 +1,5 @@
+mediapipe==0.10.21
+opencv-python>=4.9,<4.12
+requests>=2.31
+python-dotenv>=1.0
+pyttsx3>=2.90; sys_platform != "darwin"  # macOS uses the built-in `say`

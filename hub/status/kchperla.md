@@ -14,7 +14,9 @@ Lane choice is provisional: taken because this person has the phone and glasses.
 - Glasses Bluetooth name: RB Meta 02WM (marketing model still to confirm).
 - Video recording works. Glasses mic over HFP (setCommunicationDevice bt_sco) gave a silent clip once, with no AudioRecord start in the log, then a clip with sound on the next try. One pair of runs; unexplained. Wait for the recording-started signal before listening.
 - Photo capture: about 0.5 s from tap to capture and 1 to 2 s more to display it in the sample (user's estimate by feel, not a timed median). Phone audio plays out of the glasses (A2DP), user-confirmed, not timed.
-- Not yet measured: timed capture median, Muse call, end-to-end latency.
+- Muse Spark via plain HTTPS works (POST https://api.meta.ai/v1/chat/completions, model muse-spark-1.3, bearer key from .env, text and image_url data URI). Glasses photo (ceiling fan, no people) downscaled to 720px JPEG, 59 KB, "describe in six words": correct answer. Default reasoning used up the whole token budget and returned empty content in 2 of 3 runs (1.9 to 3.4 s). `"reasoning_effort":"minimal"` returned a filled answer in 0.98 s (one run each, not a median); `"low"` still spent about 470 reasoning tokens. A `reasoning` object is rejected (400). Always set reasoning_effort minimal and max_tokens of a few hundred for the glasses loop.
+- Photos can be pulled with adb from the debug sample's cache (run-as ... cache/images), so no manual transfer is needed for tests.
+- Not yet measured: timed capture median, end-to-end latency over 20 runs.
 
 **In flight**
 - Spike from hub/LOOP.md section 5, step 1: build the DAT Android sample and run it with Mock Device Kit, then on the real glasses.

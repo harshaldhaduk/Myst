@@ -1,6 +1,6 @@
 # rjpaidi · Lane 4 (caregiver setup) + glasses capture path
 
-Updated 18:35 by Claude Code
+Updated 18:49 by Claude Code
 
 Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 1. Coordinate before merging; if kchperla's spike lands first, swap its code in behind `GlassesGateway`.
 
@@ -24,6 +24,12 @@ Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 
 
 - Emulator + Mock Device Kit (18:05): Listening on -> DAT Speech started (`Speech AddCapability response: active=true`) -> mock transcription "Who is this?" -> spoke "Daniel, your son." Listening off works. Not yet tried on real glasses; whether Speech needs Developer Center enablement in Developer Mode is unknown.
 - Real phone: replaced the teammate's build with this Mac's build at 17:54 (user's choice); that deleted the two earlier enrollments.
+
+- **Real glasses, automatic identity (MuseIdentity, D12, EXPERIMENTAL/UNAPPROVED), 2026-10-24, S23 Ultra, Meta AI app 295.0.0.37.164, glasses firmware not recorded:**
+  - First version (single "pick one or none", reasoning minimal): 3 calls at about 1.4-1.5 s returned no name; 1 failed with JSONException. Replaced.
+  - Per-reference version (face_visible + same_person/confidence per reference, reasoning low): 5 of 5 verdicts were "match" (confidence 0.95-0.99, Muse 1.5-2.5 s). 3 with one person enrolled, 2 with two enrolled ("1 of 2 said same person"). The user reports every name was correct; the log records Muse's verdict, not who was actually in front.
+  - Not yet measured: a non-enrolled person (should be "not sure"), no-face tries, the PRD's 20-trial wrong-name check, end-to-end trigger-to-speech time.
+- Real glasses, capture refusals: `START_ERROR_DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED` at 17:24 and 18:31, `START_ERROR_DEVICE_UNAVAILABLE` 18:15-18:16; both cleared after reconnecting. Real Speech runs end after about 60 s (`Speech session completed`); Myst now restarts them.
 
 **Findings from the DAT 1.0.1 library (javap, not docs)**
 - Correction: `session.removeCamera()` does exist (extension in `SessionCameraExtensionsKt`); my earlier note said it did not. META_SUITE 3.5's order camera.stop -> removeCamera -> session.stop is right and the code now follows it. Same pattern for `addSpeech`/`removeSpeech`.

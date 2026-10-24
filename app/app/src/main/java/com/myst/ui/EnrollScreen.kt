@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -21,6 +24,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +53,7 @@ fun EnrollScreen(
     onRegister: () -> Unit,
     onUnregister: () -> Unit,
     onCapture: () -> Unit,
+    onWhoIsThis: () -> Unit,
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val glasses by viewModel.gateway.state.collectAsStateWithLifecycle()
@@ -136,15 +141,48 @@ fun EnrollScreen(
         }
       }
 
-      Section("Recognition") {
-        CapabilityRow(
-            Capability(
-                "Face identification",
-                Label.MOCK,
-                "Off. Enrollment only; no matching runs until Meta approves (D7) and Q12 is answered.",
-                blockedBy = "D7, Q2, Q12",
-            ),
-        )
+      Section("4. Who is this?") {
+        CapabilityRow(viewModel.identity.capability)
+        CapabilityRow(viewModel.speaker.capability)
+        Text("Demo Controls: who is in front of the wearer?", fontWeight = FontWeight.SemiBold)
+        Row(
+            Modifier.selectable(ui.mockPickId == null, role = Role.RadioButton) {
+              viewModel.pickMockPerson(null)
+            },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+          RadioButton(ui.mockPickId == null, onClick = null)
+          Text("Someone not enrolled")
+        }
+        ui.people.forEach { person ->
+          Row(
+              Modifier.selectable(ui.mockPickId == person.id, role = Role.RadioButton) {
+                viewModel.pickMockPerson(person.id)
+              },
+              verticalAlignment = Alignment.CenterVertically,
+          ) {
+            RadioButton(ui.mockPickId == person.id, onClick = null)
+            Text("${person.name} (${person.relationship.ifBlank { "—" }})")
+          }
+        }
+        Button(
+            onClick = onWhoIsThis,
+            enabled = glasses is GlassesState.Connected && !ui.identifying && !ui.capturing,
+        ) {
+          Text(if (ui.identifying) "Listening…" else "Who is this?")
+        }
+        ui.lastWhisper?.let { w ->
+          Text(
+              w.spoken?.let { "Spoke: \"$it\"" } ?: "Silent: guard blocked (${w.blockedReason})",
+              fontWeight = FontWeight.SemiBold,
+          )
+          Text(
+              "Identity: ${w.identityLabel} · glasses photo ${w.captureMs?.let { "$it ms, then discarded" } ?: "none"}" +
+                  " · trigger to speech ${w.totalMs} ms",
+              style = MaterialTheme.typography.bodySmall,
+          )
+          w.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        }
       }
     }
   }
@@ -167,11 +205,14 @@ private fun EnrollForm(hasPhoto: Boolean, onSave: (String, String, String) -> Un
   OutlinedTextField(
       recordedBy,
       { recordedBy = it },
-      label = { Text("Consent recorded by (caregiver)") },
+      label = { Text("Caregiver's name (who recorded consent)") },
       singleLine = true,
   )
-  Row(verticalAlignment = Alignment.CenterVertically) {
-    Checkbox(consent, { consent = it })
+  Row(
+      Modifier.toggleable(value = consent, role = Role.Checkbox, onValueChange = { consent = it }),
+      verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Checkbox(consent, onCheckedChange = null)
     Text("${name.ifBlank { "This person" }} agreed to be recognized by Myst")
   }
   if (!hasPhoto) Text("No photo attached. You can save now and add one later.")

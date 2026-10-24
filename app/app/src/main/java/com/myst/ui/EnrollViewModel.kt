@@ -9,6 +9,10 @@ import com.meta.wearable.dat.core.types.PermissionStatus
 import com.myst.core.records.PeopleStore
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
+import com.myst.features.faces.FamiliarFaces
+import com.myst.features.faces.MockIdentity
+import com.myst.features.faces.WhisperResult
+import com.myst.glasses.AndroidTtsSpeaker
 import com.myst.glasses.CaptureResult
 import com.myst.glasses.CaptureTimings
 import com.myst.glasses.DatGlassesGateway
@@ -30,6 +34,10 @@ data class EnrollUiState(
     val message: String? = null,
     val pending: PendingPhoto? = null,
     val people: List<Person> = emptyList(),
+    /** Demo Controls: who the operator says is in front of the wearer (null = not enrolled). */
+    val mockPickId: String? = null,
+    val identifying: Boolean = false,
+    val lastWhisper: WhisperResult? = null,
 )
 
 class EnrollViewModel(application: Application) : AndroidViewModel(application) {
@@ -40,8 +48,29 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   private val _ui = MutableStateFlow(EnrollUiState())
   val ui: StateFlow<EnrollUiState> = _ui.asStateFlow()
 
+  val speaker = AndroidTtsSpeaker(application)
+  val identity =
+      MockIdentity(picked = { _ui.value.let { s -> s.people.firstOrNull { it.id == s.mockPickId } } })
+  private val faces = FamiliarFaces(gateway, identity, speaker, people = { _ui.value.people })
+
   init {
     refreshPeople()
+  }
+
+  fun pickMockPerson(id: String?) = _ui.update { it.copy(mockPickId = id) }
+
+  fun whoIsThis(requestPermission: suspend (Permission) -> PermissionStatus) {
+    if (_ui.value.identifying || _ui.value.capturing) return
+    _ui.update { it.copy(identifying = true) }
+    viewModelScope.launch {
+      val result = faces.whoIsThis(requestPermission)
+      _ui.update { it.copy(identifying = false, lastWhisper = result) }
+    }
+  }
+
+  override fun onCleared() {
+    speaker.shutdown()
+    super.onCleared()
   }
 
   /** After Android Bluetooth permissions are granted. Initialize exactly once per process. */

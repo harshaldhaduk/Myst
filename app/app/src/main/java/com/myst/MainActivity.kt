@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
           onRegister = { viewModel.gateway.startRegistration(this) },
           onUnregister = { viewModel.gateway.startUnregistration(this) },
           onCapture = { viewModel.capture(::requestWearablesPermission) },
+          onWhoIsThis = { viewModel.whoIsThis(::requestWearablesPermission) },
       )
     }
   }

@@ -1,0 +1,12 @@
+# face-demo: teammates' photos and secrets must never be committed
+face-demo/faces/*
+!face-demo/faces/.gitkeep
+!face-demo/faces/README.md
+.env
+# ...except CompreFace's own docker-compose config (image versions, local-only DB creds)
+!face-demo/compreface/.env
+
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store

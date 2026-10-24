@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
           onCapture = { viewModel.capture(::requestWearablesPermission) },
           onWhoIsThis = { viewModel.whoIsThis(::requestWearablesPermission) },
           onListening = { on -> viewModel.setListening(on, ::requestWearablesPermission) },
+          onOpenGlassesUpdate = { viewModel.openGlassesUpdate(this) },
       )
     }
   }

@@ -16,6 +16,7 @@ data class WhisperResult(
     val captureMs: Long?,
     val totalMs: Long,
     val note: String?,
+    val glassesUpdateRequired: Boolean = false,
 )
 
 /**
@@ -42,6 +43,8 @@ class FamiliarFaces(
           CaptureResult.Paused -> "Glasses paused; continuing without a photo."
           CaptureResult.CapabilityDenied -> "Camera denied for this session; continuing without a photo."
           CaptureResult.PermissionDenied -> "No camera permission; continuing without a photo."
+          CaptureResult.GlassesUpdateRequired ->
+              "The glasses need a software update (tap Open glasses update); continuing without a photo."
           is CaptureResult.Failed -> "Capture failed (${capture.reason}); continuing without a photo."
         }
     // Only a provider that matches faces gets the photo; otherwise it goes out of scope here.
@@ -70,6 +73,7 @@ class FamiliarFaces(
         captureMs = captureMs,
         totalMs = SystemClock.elapsedRealtime() - t0,
         note = note,
+        glassesUpdateRequired = capture == CaptureResult.GlassesUpdateRequired,
     )
   }
 

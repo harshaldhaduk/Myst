@@ -56,6 +56,7 @@ fun EnrollScreen(
     onCapture: () -> Unit,
     onWhoIsThis: () -> Unit,
     onListening: (Boolean) -> Unit,
+    onOpenGlassesUpdate: () -> Unit,
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val listening by viewModel.gateway.isListening.collectAsStateWithLifecycle()
@@ -75,6 +76,9 @@ fun EnrollScreen(
     ) {
       Text("Myst · family setup", style = MaterialTheme.typography.headlineSmall)
       ui.message?.let { Text(it, color = MaterialTheme.colorScheme.primary) }
+      if (ui.needsGlassesUpdate) {
+        Button(onClick = onOpenGlassesUpdate) { Text("Open glasses update (Meta AI app)") }
+      }
 
       Section("1. Connect the glasses") {
         Text("Status: ${glasses.describe()}")

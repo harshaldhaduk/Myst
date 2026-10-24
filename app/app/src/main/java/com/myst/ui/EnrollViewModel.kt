@@ -1,5 +1,6 @@
 package com.myst.ui
 
+import android.app.Activity
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -43,6 +44,8 @@ data class EnrollUiState(
     val mockPickId: String? = null,
     val identifying: Boolean = false,
     val lastWhisper: WhisperResult? = null,
+    /** The glasses refused with DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED; offer the update screen. */
+    val needsGlassesUpdate: Boolean = false,
 )
 
 class EnrollViewModel(application: Application) : AndroidViewModel(application) {
@@ -86,6 +89,12 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   fun pickMockPerson(id: String?) = _ui.update { it.copy(mockPickId = id) }
 
+  fun openGlassesUpdate(activity: Activity) {
+    gateway.openGlassesUpdate(activity)?.let { f ->
+      _ui.update { it.copy(message = "Could not open the update screen: $f") }
+    }
+  }
+
   /** Turns the spoken trigger on or off. Called from a tap (the mic permission needs a user action). */
   fun setListening(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
     if (!on) {
@@ -98,7 +107,10 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
             if (WhoIsThisPhrase.matches(text)) whoIsThis(requestPermission)
           }
       _ui.update {
-        it.copy(message = failure?.let { f -> "Listening failed: $f" } ?: "Listening for \"Who is this?\"")
+        it.copy(
+            message = failure?.let { f -> "Listening failed: $f" } ?: "Listening for \"Who is this?\"",
+            needsGlassesUpdate = failure?.contains("update") == true,
+        )
       }
     }
   }
@@ -113,7 +125,13 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     _ui.update { it.copy(identifying = true) }
     viewModelScope.launch {
       val result = faces.whoIsThis(requestPermission)
-      _ui.update { it.copy(identifying = false, lastWhisper = result) }
+      _ui.update {
+        it.copy(
+            identifying = false,
+            lastWhisper = result,
+            needsGlassesUpdate = result.glassesUpdateRequired,
+        )
+      }
     }
   }
 
@@ -166,6 +184,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
           is CaptureResult.Ok ->
               it.copy(
                   capturing = false,
+                  needsGlassesUpdate = false,
                   pending = PendingPhoto(result.photo, source, result.timings),
                   message = null,
               )
@@ -183,6 +202,12 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
               it.copy(
                   capturing = false,
                   message = "Camera permission not granted in the Meta AI app.",
+              )
+          CaptureResult.GlassesUpdateRequired ->
+              it.copy(
+                  capturing = false,
+                  needsGlassesUpdate = true,
+                  message = "The glasses refused: their DAT software needs an update.",
               )
           is CaptureResult.Failed ->
               it.copy(capturing = false, message = "Capture failed: ${result.reason}")

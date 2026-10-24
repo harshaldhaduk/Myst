@@ -25,6 +25,8 @@ sealed interface CaptureResult {
   /** DeviceSessionError.CAPABILITY_DENIED. Normal even on supported hardware (META_SUITE 3.2). */
   data object CapabilityDenied : CaptureResult
   data object PermissionDenied : CaptureResult
+  /** DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED. Wearables.openFirmwareUpdate() leads to the fix. */
+  data object GlassesUpdateRequired : CaptureResult
   data class Failed(val reason: String) : CaptureResult
 }
 
@@ -47,6 +49,9 @@ interface GlassesGateway {
   fun startRegistration(activity: Activity)
 
   fun startUnregistration(activity: Activity)
+
+  /** Opens the Meta AI app's update screen for the glasses. Returns a failure reason or null. */
+  fun openGlassesUpdate(activity: Activity): String?
 
   /**
    * One photo: camera.stop(), session.removeCamera(), then session.stop(). Uses a new session per

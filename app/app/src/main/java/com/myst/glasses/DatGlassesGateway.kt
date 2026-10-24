@@ -13,6 +13,8 @@ import com.meta.wearable.dat.camera.removeCamera
 import com.meta.wearable.dat.speech.Speech
 import com.meta.wearable.dat.speech.addSpeech
 import com.meta.wearable.dat.speech.removeSpeech
+import com.meta.wearable.dat.speech.types.SpeechState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import com.meta.wearable.dat.camera.types.PhotoData
 import com.meta.wearable.dat.camera.types.StreamConfiguration
@@ -55,6 +57,8 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
     private const val TAG = "Myst:Glasses"
     private const val SESSION_TIMEOUT_MS = 15_000L
     private const val STREAM_TIMEOUT_MS = 15_000L
+    private const val ERROR_SETTLE_MS = 750L
+    private const val SPEECH_RESTART_DELAY_MS = 300L
     private const val MAX_EDGE_PX = 1024
     private const val JPEG_QUALITY = 85
 
@@ -110,6 +114,9 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
 
   override fun startUnregistration(activity: Activity) = Wearables.startUnregistration(activity)
 
+  override fun openGlassesUpdate(activity: Activity): String? =
+      Wearables.openFirmwareUpdate(activity).let { r -> if (r.isFailure) r.describeError() else null }
+
   override suspend fun capturePhoto(
       requestPermission: suspend (Permission) -> PermissionStatus,
   ): CaptureResult =
@@ -161,6 +168,19 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
                 scope.launch {
                   speech.transcriptions.collect { result ->
                     if (result != null && result.isFinal) onFinalText(result.text)
+                  }
+                },
+                // On the real glasses a speech run ends on its own after about 60 s
+                // ("Speech session completed"). Restart it while Listening is on; give up on failure.
+                scope.launch {
+                  var running = false
+                  speech.state.collect { state ->
+                    if (state == SpeechState.STARTED) running = true
+                    if (state == SpeechState.STOPPED && running && listening?.speech === speech) {
+                      running = false
+                      delay(SPEECH_RESTART_DELAY_MS)
+                      if (speech.start().isFailure) stopListening()
+                    }
                   }
                 },
                 // The wearer can end the session (hinges closed, glasses removed); stop cleanly.
@@ -215,7 +235,17 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
                     ?: CaptureResult.Failed(created.describeError()),
             )
     val sessionError = MutableStateFlow<DeviceSessionError?>(null)
-    val open = OpenSession(session, scope.launch { session.errors.collect { sessionError.value = it } })
+    val allErrors = mutableListOf<DeviceSessionError>()
+    val open =
+        OpenSession(
+            session,
+            scope.launch {
+              session.errors.collect {
+                allErrors += it
+                sessionError.value = it
+              }
+            },
+        )
     session.start()
     val started =
         withTimeoutOrNull(SESSION_TIMEOUT_MS) {
@@ -237,8 +267,14 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
           else -> null
         }
     if (failure != null) {
+      // The glasses often send a generic "ended by device" first and the real cause (for example
+      // DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED) a moment later; wait briefly and prefer the cause.
+      delay(ERROR_SETTLE_MS)
       open.close()
-      return Opened.Err(failure)
+      val specific =
+          allErrors.firstOrNull { it == DeviceSessionError.DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED }
+              ?: allErrors.firstOrNull { it != DeviceSessionError.SESSION_ENDED_BY_DEVICE }
+      return Opened.Err(specific?.let(::mapSessionError) ?: failure)
     }
     return Opened.Ok(open)
   }
@@ -344,6 +380,7 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
         CaptureResult.PermissionDenied -> "Permission not granted in the Meta AI app"
         CaptureResult.CapabilityDenied -> "The glasses denied this capability (CAPABILITY_DENIED)"
         CaptureResult.Paused -> "Glasses paused the session"
+        CaptureResult.GlassesUpdateRequired -> "The glasses' DAT software needs an update"
         is CaptureResult.Ok -> "ok"
       }
 
@@ -353,6 +390,13 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
   private fun mapSessionError(error: DeviceSessionError): CaptureResult =
       when (error) {
         DeviceSessionError.CAPABILITY_DENIED -> CaptureResult.CapabilityDenied
+        DeviceSessionError.DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED -> CaptureResult.GlassesUpdateRequired
+        DeviceSessionError.DWA_UNAVAILABLE,
+        DeviceSessionError.NO_ELIGIBLE_DEVICE,
+        DeviceSessionError.DEVICE_DISCONNECTED ->
+            CaptureResult.Failed("Glasses not available: wear them unfolded and check the Meta AI app shows them connected")
+        DeviceSessionError.SESSION_ENDED_BY_DEVICE ->
+            CaptureResult.Failed("The glasses ended the session (not worn, or their software needs an update)")
         else -> CaptureResult.Failed(error.description)
       }
 

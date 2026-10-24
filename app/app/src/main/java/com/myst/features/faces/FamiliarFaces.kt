@@ -24,7 +24,7 @@ data class WhisperResult(
  */
 class FamiliarFaces(
     private val glasses: GlassesGateway,
-    private val identity: IdentityProvider,
+    private val identity: () -> IdentityProvider,
     private val speaker: Speaker,
     private val people: () -> List<Person>,
 ) {
@@ -44,8 +44,10 @@ class FamiliarFaces(
           CaptureResult.PermissionDenied -> "No camera permission; continuing without a photo."
           is CaptureResult.Failed -> "Capture failed (${capture.reason}); continuing without a photo."
         }
-    // MockIdentity never uses the photo, so none is passed on and it goes out of scope here.
-    val who = identity.identify(photo = null)
+    // Only a provider that matches faces gets the photo; otherwise it goes out of scope here.
+    val provider = identity()
+    val photo = (capture as? CaptureResult.Ok)?.photo
+    val who = provider.identify(if (provider.usesPhoto) photo else null)
 
     val everyone = people()
     val (text, source) =
@@ -60,7 +62,9 @@ class FamiliarFaces(
           is ResponseGuard.Decision.Block -> null
         }
     return WhisperResult(
-        identityLabel = identity.capability.label.name,
+        identityLabel =
+            provider.capability.label.name +
+                ((provider as? MuseIdentity)?.lastDetail?.let { " ($it)" } ?: ""),
         spoken = spoken,
         blockedReason = (decision as? ResponseGuard.Decision.Block)?.reason,
         captureMs = captureMs,

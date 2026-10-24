@@ -59,6 +59,7 @@ fun EnrollScreen(
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val listening by viewModel.gateway.isListening.collectAsStateWithLifecycle()
+  val autoIdentify by viewModel.autoIdentify.collectAsStateWithLifecycle()
   val glasses by viewModel.gateway.state.collectAsStateWithLifecycle()
   val camera by viewModel.gateway.capability.collectAsStateWithLifecycle()
   var mockOn by rememberSaveable { mutableStateOf(false) }
@@ -145,27 +146,44 @@ fun EnrollScreen(
       }
 
       Section("4. Who is this?") {
-        CapabilityRow(viewModel.identity.capability)
-        CapabilityRow(viewModel.speaker.capability)
-        Text("Demo Controls: who is in front of the wearer?", fontWeight = FontWeight.SemiBold)
-        Row(
-            Modifier.selectable(ui.mockPickId == null, role = Role.RadioButton) {
-              viewModel.pickMockPerson(null)
-            },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-          RadioButton(ui.mockPickId == null, onClick = null)
-          Text("Someone not enrolled")
+        viewModel.museIdentity?.let { muse ->
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(checked = autoIdentify, onCheckedChange = viewModel::setAutoIdentify)
+            Text("  Recognize automatically (Muse face match)", Modifier.weight(1f))
+          }
+          if (autoIdentify) {
+            CapabilityRow(muse.capability)
+            Text(
+                "UNAPPROVED, dev only (D12). Use only when every face in view belongs to a " +
+                    "consenting teammate: the whole photo is sent to Meta's Model API.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+          }
         }
-        ui.people.forEach { person ->
+        if (!autoIdentify) CapabilityRow(viewModel.mockIdentity.capability)
+        CapabilityRow(viewModel.speaker.capability)
+        if (!autoIdentify) {
+          Text("Demo Controls: who is in front of the wearer?", fontWeight = FontWeight.SemiBold)
           Row(
-              Modifier.selectable(ui.mockPickId == person.id, role = Role.RadioButton) {
-                viewModel.pickMockPerson(person.id)
+              Modifier.selectable(ui.mockPickId == null, role = Role.RadioButton) {
+                viewModel.pickMockPerson(null)
               },
               verticalAlignment = Alignment.CenterVertically,
           ) {
-            RadioButton(ui.mockPickId == person.id, onClick = null)
-            Text("${person.name} (${person.relationship.ifBlank { "—" }})")
+            RadioButton(ui.mockPickId == null, onClick = null)
+            Text("Someone not enrolled")
+          }
+          ui.people.forEach { person ->
+            Row(
+                Modifier.selectable(ui.mockPickId == person.id, role = Role.RadioButton) {
+                  viewModel.pickMockPerson(person.id)
+                },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+              RadioButton(ui.mockPickId == person.id, onClick = null)
+              Text("${person.name} (${person.relationship.ifBlank { "—" }})")
+            }
           }
         }
         CapabilityRow(WhoIsThisPhrase.capability)

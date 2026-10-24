@@ -9,7 +9,11 @@ import com.meta.wearable.dat.core.types.PermissionStatus
 import com.myst.core.records.PeopleStore
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
+import com.myst.BuildConfig
 import com.myst.features.faces.FamiliarFaces
+import com.myst.features.faces.IdentityProvider
+import com.myst.features.faces.MuseIdentity
+import com.myst.muse.MuseClient
 import com.myst.features.faces.MockIdentity
 import com.myst.features.faces.WhisperResult
 import com.myst.features.faces.WhoIsThisPhrase
@@ -50,9 +54,31 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   val ui: StateFlow<EnrollUiState> = _ui.asStateFlow()
 
   val speaker = AndroidTtsSpeaker(application)
-  val identity =
+  val mockIdentity =
       MockIdentity(picked = { _ui.value.let { s -> s.people.firstOrNull { it.id == s.mockPickId } } })
-  private val faces = FamiliarFaces(gateway, identity, speaker, people = { _ui.value.people })
+
+  /** D12: only exists when a human built with myst.allowFaceId=true. */
+  val museIdentity: MuseIdentity? =
+      if (BuildConfig.ALLOW_FACE_ID) {
+        MuseIdentity(MuseClient(BuildConfig.MUSE_API_KEY)) {
+          // Reference photos: real glasses captures only, never Mock Device Kit placeholders.
+          _ui.value.people
+              .filter { it.photoSource == PhotoSource.GLASSES }
+              .mapNotNull { p -> store.photo(p)?.readBytes()?.let { p to it } }
+        }
+      } else null
+
+  private val _autoIdentify = MutableStateFlow(false)
+  val autoIdentify: StateFlow<Boolean> = _autoIdentify.asStateFlow()
+
+  fun setAutoIdentify(on: Boolean) {
+    _autoIdentify.value = on && museIdentity != null
+  }
+
+  val identity: IdentityProvider
+    get() = museIdentity?.takeIf { _autoIdentify.value } ?: mockIdentity
+
+  private val faces = FamiliarFaces(gateway, { identity }, speaker, people = { _ui.value.people })
 
   init {
     refreshPeople()

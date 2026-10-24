@@ -1,0 +1,58 @@
+package com.myst.glasses
+
+import android.app.Activity
+import com.meta.wearable.dat.core.types.Permission
+import com.meta.wearable.dat.core.types.PermissionStatus
+import com.myst.core.Capability
+import kotlinx.coroutines.flow.StateFlow
+
+/** A captured still, held in memory only. Callers decide whether a consented enrollment keeps it. */
+class Photo(val jpeg: ByteArray, val width: Int, val height: Int)
+
+/** Milliseconds for each step of one capture, shown on screen. */
+data class CaptureTimings(
+    val permissionMs: Long,
+    val sessionMs: Long,
+    val streamMs: Long,
+    val captureMs: Long,
+    val totalMs: Long,
+)
+
+sealed interface CaptureResult {
+  data class Ok(val photo: Photo, val timings: CaptureTimings) : CaptureResult
+  /** The wearer tapped, took the glasses off or closed the hinges. Normal; try again. */
+  data object Paused : CaptureResult
+  /** DeviceSessionError.CAPABILITY_DENIED. Normal even on supported hardware (META_SUITE 3.2). */
+  data object CapabilityDenied : CaptureResult
+  data object PermissionDenied : CaptureResult
+  data class Failed(val reason: String) : CaptureResult
+}
+
+sealed interface GlassesState {
+  data object NotInitialized : GlassesState
+  data object Unregistered : GlassesState
+  data object Registering : GlassesState
+  /** Registered with the Meta AI app but no glasses connected. */
+  data object Disconnected : GlassesState
+  data class Connected(val deviceCount: Int) : GlassesState
+  /** A capture session is open right now. */
+  data object Capturing : GlassesState
+}
+
+interface GlassesGateway {
+  val capability: StateFlow<Capability>
+  val state: StateFlow<GlassesState>
+
+  /** Hands off to the Meta AI app; it returns to us via the `myst://` scheme. */
+  fun startRegistration(activity: Activity)
+
+  fun startUnregistration(activity: Activity)
+
+  /**
+   * New session per request, one photo, then shut down: camera.stop() then session.stop().
+   * DAT 1.0.1 has no session.removeCamera(); stopping the camera detaches it.
+   */
+  suspend fun capturePhoto(
+      requestPermission: suspend (Permission) -> PermissionStatus,
+  ): CaptureResult
+}

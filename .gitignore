@@ -7,3 +7,11 @@ face-demo/
 !.env.example
 .venv/
 __pycache__/
+
+# Android build output and machine-local config
+app/.gradle/
+app/build/
+app/app/build/
+app/local.properties
+.idea/
+*.iml

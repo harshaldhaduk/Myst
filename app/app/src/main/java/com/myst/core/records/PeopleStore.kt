@@ -1,0 +1,66 @@
+package com.myst.core.records
+
+import android.content.Context
+import java.io.File
+import java.util.UUID
+import org.json.JSONArray
+
+/**
+ * Enrolled family, stored in app-private storage on this phone only (Live, app logic).
+ *
+ * Not a cloud store: identity data stays on the phone (AGENTS.md), D5 rules out a cloud backend,
+ * and the glasses hold no app data. Files live under noBackupFilesDir so Android backup never
+ * copies them off the phone. Revoking deletes the record and its photo.
+ */
+class PeopleStore(context: Context) {
+  private val dir = File(context.noBackupFilesDir, "people").apply { mkdirs() }
+  private val index = File(dir, "people.json")
+
+  @Synchronized
+  fun all(): List<Person> {
+    if (!index.exists()) return emptyList()
+    val arr = JSONArray(index.readText())
+    return (0 until arr.length()).map { Person.fromJson(arr.getJSONObject(it)) }
+  }
+
+  @Synchronized
+  fun enroll(
+      name: String,
+      relationship: String,
+      consentRecordedBy: String,
+      photoJpeg: ByteArray?,
+      photoSource: PhotoSource?,
+  ): Person {
+    val id = UUID.randomUUID().toString()
+    val photoFile = photoJpeg?.let { bytes -> "$id.jpg".also { File(dir, it).writeBytes(bytes) } }
+    val now = System.currentTimeMillis()
+    val person =
+        Person(
+            id = id,
+            name = name.trim(),
+            relationship = relationship.trim(),
+            consent = Consent(consentRecordedBy.trim(), now),
+            photoFile = photoFile,
+            photoSource = photoJpeg?.let { photoSource },
+            createdAtMillis = now,
+        )
+    write(all() + person)
+    return person
+  }
+
+  /** Consent withdrawn: remove the record and its photo. */
+  @Synchronized
+  fun revoke(id: String) {
+    val people = all()
+    people.firstOrNull { it.id == id }?.photoFile?.let { File(dir, it).delete() }
+    write(people.filterNot { it.id == id })
+  }
+
+  fun photo(person: Person): File? = person.photoFile?.let { File(dir, it) }?.takeIf { it.exists() }
+
+  private fun write(people: List<Person>) {
+    val tmp = File(dir, "people.json.tmp")
+    tmp.writeText(JSONArray().apply { people.forEach { put(it.toJson()) } }.toString())
+    tmp.renameTo(index)
+  }
+}

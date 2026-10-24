@@ -58,6 +58,8 @@ class MuseClient(private val apiKey: String) {
       userParts: List<JSONObject>,
       schemaName: String,
       schema: JSONObject,
+      reasoningEffort: String = "minimal",
+      maxTokens: Int = MuseConfig.MAX_TOKENS,
   ): Result =
       withContext(Dispatchers.IO) {
         val t0 = SystemClock.elapsedRealtime()
@@ -66,8 +68,8 @@ class MuseClient(private val apiKey: String) {
         val body =
             JSONObject()
                 .put("model", MuseConfig.MODEL)
-                .put("reasoning_effort", "minimal")
-                .put("max_tokens", MuseConfig.MAX_TOKENS)
+                .put("reasoning_effort", reasoningEffort)
+                .put("max_tokens", maxTokens)
                 .put(
                     "response_format",
                     JSONObject()
@@ -98,11 +100,19 @@ class MuseClient(private val apiKey: String) {
                 Result.Failed("HTTP $code", ms())
               } else {
                 val text = conn.inputStream.bufferedReader().use { it.readText() }
+                val choice = JSONObject(text).getJSONArray("choices").getJSONObject(0)
                 val content =
-                    JSONObject(text).getJSONArray("choices").getJSONObject(0)
-                        .getJSONObject("message").optString("content")
-                if (content.isBlank()) Result.Failed("empty answer", ms())
-                else Result.Ok(JSONObject(content), ms())
+                    choice.getJSONObject("message").optString("content").trim()
+                        .removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+                val finish = choice.optString("finish_reason")
+                when {
+                  content.isBlank() -> Result.Failed("empty answer (finish=$finish)", ms())
+                  // Not JSON: usually a refusal or a cut-off answer. The first 80 characters
+                  // say which; that text is model output, never an image or the key.
+                  !content.startsWith("{") ->
+                      Result.Failed("not JSON (finish=$finish): ${content.take(80)}", ms())
+                  else -> Result.Ok(JSONObject(content), ms())
+                }
               }
             } catch (e: Exception) {
               Result.Failed(e.javaClass.simpleName, ms())

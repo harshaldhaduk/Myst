@@ -19,6 +19,7 @@ Lane choice is provisional: taken because this person has the phone and glasses.
 - Not yet measured: timed capture median, end-to-end latency over 20 runs.
 
 **In flight**
+- 2026-10-25 01:05: merged `kchperla/ui-redesign` (includes RJ's `rjpaidi/memories`) into main. Every other branch is already contained in main except `feature/face-recognition-demo` (retired webcam demo, D10; last commit `e2bdc44`). The user asked to delete all other branches.
 - UI redesign (branch `kchperla/ui-redesign`, based on `rjpaidi/memories` so RJ's tap trigger and memory rotation are kept; D19 Proposed). Two tabs, one switch, no demo controls, pastel theme. Cross-lane: rewrites RJ's `EnrollScreen` (deleted) and medicine UI in `HouseholdTabs`; Places content untouched.
   - Verified on the S23 Ultra and real glasses (2026-10-25 00:50): new build installed, glasses re-registered, Home shows "Glasses on", the switch turned on the glasses tap (media session) and DAT Speech (`speech start response: RESPONSE_STATUS_OK`). First switch-on hit `START_ERROR_DEVICE_UNAVAILABLE`; the screen now says so in plain words with "Try voice again". Fixed: "DAT initialize failed: already initialized" after the screen is recreated.
   - Installing over RJ's build needed an uninstall (different debug signing key). App data (2 people, memories, sightings, medications, places, photos) was backed up with run-as and restored; DAT registration was redone in the Meta AI app.

@@ -1,6 +1,6 @@
 # Mayank (mayank-jain632) · Lane 2 (files shared with RJ): Familiar Faces hardening, Muse key handling
 
-Updated 03:12 by Codex
+Updated 03:38 by Codex
 
 **Shipped** (on `main`, pushed: ef9d32c, 7aeed51, efc2270)
 - Glasses battery UI: Home observes DAT 1.0.1 device metadata for one connected pair and displays a valid percentage in the status pill and Glasses card; otherwise the card says battery unavailable. Built in an isolated worktree so the D25 conversation spike changes in the shared checkout are untouched.
@@ -11,23 +11,22 @@ Updated 03:12 by Codex
 - efc2270 (D24): Reminders page replaces Medicine; bottle check, room check, "What is this?", Places and the two Home buttons removed (archived at tag `archive/bottle-check-places-home-buttons`); quiet "Backup: Who is this?" text button at the bottom of Home. 7aeed51 alone did not build (it deleted files still in use); efc2270 fixes that. Both pushed.
 - D25 feasibility tooling: a debug-only 30-second consent-driven HFP recording control on Home. It keeps PCM and WAV in RAM, calls Meta's `/v1/asr/transcribe` as multipart DIARIZATION WAV and a Spark structured summary, and reports route/photo/API status. It is a spike, not a visit feature. `docs/demo-script.md` is a draft operator procedure.
 - MuseClient no longer logs model-output snippets on malformed JSON; conversation text could otherwise appear in diagnostics.
-- D28 code: repeat successful recognition refreshes the stored VISIT timestamp and can say "You just saw <name>" within five minutes. The Android MediaSession tap guess was removed; Home now promises only experimental voice plus the quiet backup control. No real-glasses run of this revision yet.
-- D27 code: Reminders uses Android's time picker and one daily alarm per saved time, with optional location/water/food lines. Reported-taken controls, re-reminds and missed-dose alerts were removed; old records remain readable. No real-phone run of this revision yet.
 
 **In flight**
-- D29 Proposed: pivot conversation help to an optional, automatic nudge after a cut-off sentence during a short consented visit. The D25 spike only established wearer ASR and a DAT photo during HFP; DAT Speech sharing, other-speaker pickup and Spark summary are unproved. Building the smallest grounded sentence-break path next.
+- Conversation nudge stopped at its required device spike: DAT Speech coexistence is not established, the other speaker was not tested, and Spark returned BAD_ANSWER. Mayank accepted D25 and its batch-upload amendment D26 at 02:49; the stop rule still applies. Medication as reminders only is done (D24, efc2270).
+- Rollback: `ae9d87b` reverts the unverified `f7187d2` app changes to the last device-tested D25-era app code (`686c718` over `f5a3c9f`). The restored APK rebuilt, passed lint, and installed with `adb install -r`; a fresh behavior run is pending. Sentence-nudge WIP is preserved only in a local git stash.
 
 **Verified on device**
 - 02:20: efc2270 installed on the S23 Ultra with `adb install -r`; family data intact (screenshot check). No reminder fired then. The task handoff says the Muse key was provisioned afterward; this session did not inspect or reveal it.
 - 2026-10-25 ~02:38, S23 Ultra, Meta AI app 295.0.0.37.164, RB Meta 02WM, firmware not recorded: `adb install -r` of the D25 spike build succeeded. With a consenting teammate, user reported `HFP routed=true`, photo OK during HFP, and the temporary Meta ASR transcript correctly included the wearer's taco conversation. The teammate did not speak in that first clip. Spark reported `BAD_ANSWER`; exact ASR/Spark latencies were not supplied. A later "Who is this?" attempt was intermittently ignored or produced an earcon with no audible answer; when the earcon played, Home's "Last thing Myst said" stayed empty. The result line for that later run was not reported. These are user-observed outcomes, not a measured reliability rate.
 - 2026-10-25 after the spike, with Start Myst on and the glasses pointed away from people, the user tapped Home's backup "Who is this?" control. Home's last-said card updated and Myst's unsure line was heard through the glasses. This separates the working backup path from the unreliable spoken trigger; it is not a timed run and does not prove a stranger negative case.
 - The revised spike APK (RAM buffer wipe, debug-only microphone permission, no model-output snippet logging) passed `assembleDebug lintDebug` and installed with `adb install -r` successfully. After rebasing on f5a3c9f (battery UI), the integrated APK again passed `assembleDebug lintDebug` and installed with `adb install -r`. No second run of either revised APK is claimed.
+- 2026-10-25 ~03:38, same S23 Ultra: restored D25-era APK built from code at `686c718` (battery UI from `f5a3c9f`) and installed successfully with `adb install -r`. No uninstall, clear-data or enrollment changes were made. Glasses behavior after rollback has not yet been rechecked.
 
 **Gaps**
 - Battery percentage has not been checked against the real glasses; the UI reading is not a battery-life measurement.
 - Stranger, no-face and failure trials (gate A4, E2) after D21 lands.
 - D25: confirm DAT Speech phrase while AudioRecord is active, hear the teammate at about 1 m, collect the ASR/Spark timings, and diagnose Spark's invalid structured answer. The debug control does not start a visit or whisper a nudge.
-- D27/D28 revisions pass `assembleDebug lintDebug` in the shared checkout (subagent report) but are not installed or device-verified. Check Krishna repeat wording, Home's removed tap claim, and a daily reminder on the S23 Ultra before calling them live behavior.
 - Rotate the old Muse key if any APK built before D22 was shared.
 
 **Real-glasses rehearsal log (2026-10-25; observations, not accuracy claims)**

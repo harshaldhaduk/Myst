@@ -99,23 +99,22 @@ class HouseholdStore(context: Context) {
       events().filter { it.type == EventType.VISIT && it.personId == personId }.map { it.atMillis }.sorted()
 
   /**
-   * Logs one recognition. A repeat within [VisitMemory.DEDUPE_MS] updates that sighting's actual
-   * last-recognized time rather than growing the log. Older VISIT events are deleted in the same
-   * write. [force] allows an explicit backfill without replacing a nearby event.
+   * Logs one recognition. A repeat within [VisitMemory.DEDUPE_MS] is not stored, and VISIT events
+   * older than [VisitMemory.KEEP_DAYS] are deleted in the same write. [force] is for the demo
+   * control, which backfills an earlier sighting.
    */
   @Synchronized
   fun logSighting(personId: String, atMillis: Long, detail: String, force: Boolean = false) {
     val all = events()
     val near =
-        all.filter {
+        all.any {
           it.type == EventType.VISIT &&
               it.personId == personId &&
               kotlin.math.abs(atMillis - it.atMillis) <= VisitMemory.DEDUPE_MS
-        }.maxByOrNull { it.atMillis }.takeUnless { force }
-    val kept = all.filterNot { VisitMemory.expired(it, atMillis) || it.id == near?.id }
-    val sighting = near?.copy(atMillis = atMillis, detail = detail)
-        ?: Event(UUID.randomUUID().toString(), EventType.VISIT, atMillis, personId, detail = detail)
-    write("events.json", kept + sighting) {
+        }
+    if (near && !force) return
+    val kept = all.filterNot { VisitMemory.expired(it, atMillis) }
+    write("events.json", kept + Event(UUID.randomUUID().toString(), EventType.VISIT, atMillis, personId, detail = detail)) {
       it.toJson()
     }
   }

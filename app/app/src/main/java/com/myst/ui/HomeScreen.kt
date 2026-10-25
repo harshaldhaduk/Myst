@@ -49,6 +49,7 @@ import com.myst.features.VoiceCommands
 import com.myst.features.meds.DoseReminders
 import com.myst.features.meds.DoseSchedule
 import com.myst.glasses.GlassesState
+import com.myst.glasses.GlassesTapTrigger
 import com.myst.ui.theme.Myst
 import java.util.Calendar
 
@@ -94,9 +95,9 @@ fun HomeScreen(
       )
       Text(
           if (mystOn) {
-            "Say \"Who is this?\". If voice misses it, use the backup below."
+            "Say \"Who is this?\" or tap the glasses."
           } else {
-            "One switch for voice help."
+            "One switch for voice and glasses tap."
           },
           style = MaterialTheme.typography.bodyMedium,
           color = Myst.InkSoft,
@@ -107,7 +108,7 @@ fun HomeScreen(
         Spacer(Modifier.height(14.dp))
         Panel(tint = Myst.BlushWash, radius = 22.dp, padding = 16.dp) {
           Text(ui.voiceProblem, style = MaterialTheme.typography.bodyMedium)
-          Text("Use the backup button below while voice reconnects.", style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
+          Text("Tapping the glasses still works.", style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
           PillButton("Try voice again", { onMystOn(true) }, color = Myst.Blush)
         }
       }
@@ -152,7 +153,7 @@ fun HomeScreen(
 
     AboutCard(viewModel, camera)
 
-    // Backup when the voice phrase fails: same path (earcon, glasses photo, Muse), kept quiet.
+    // Backup for when voice and tap both fail: same path (earcon, glasses photo, Muse), kept quiet.
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
       QuietButton(
           if (ui.identifying) "Looking…" else "Backup: Who is this?",
@@ -319,7 +320,9 @@ private fun AboutCard(viewModel: EnrollViewModel, camera: Capability) {
         CapabilityRow(viewModel.museIdentity?.capability ?: FACE_ID_NOT_IN_BUILD)
         CapabilityRow(viewModel.speaker.capability)
         CapabilityRow(VoiceCommands.capability)
+        CapabilityRow(GlassesTapTrigger.capability)
         CapabilityRow(DoseReminders.capability)
+        CapabilityRow(DoseReminders.alertCapability)
         Text(
             "Family records, memories, photos and reminders stay in Myst's private storage on this phone. " +
                 "They are not backed up.",

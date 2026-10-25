@@ -2,7 +2,7 @@
 
 > **Superseded in part (2026-10-24):** `hub/PRD.md` (HackTX PRD, D4) now sets scope: Medication Routine is a P0 feature beside Familiar Faces, object help is roadmap, and the stack is Meta only (D5). Where this file disagrees on those points, the PRD and `hub/DECISIONS.md` win. The rest (thesis, privacy, judge answers) still stands. For what Meta's platform actually provides (section 8's open questions), read `hub/META_SUITE.md`.
 >
-> **Current state (2026-10-25):** an Android app on `main` runs on the real glasses; built vs missing is in `hub/PRD.md` section 4, device results in `AGENTS.md` "Verified implementation facts". The "no repository was inspected" status note below is historical. Familiar Faces leads; D27 reopens Medication Routine only to simplify it to one daily reminder. D29 proposes a sentence-break nudge, not yet verified on the glasses.
+> **Current state (2026-10-25):** an Android app on `main` runs on the real glasses; built vs missing is in `hub/PRD.md` section 4, device results in `AGENTS.md` "Verified implementation facts". The "no repository was inspected" status note below is historical. For the demo period Familiar Faces leads and Medication Routine is frozen (D20, Proposed).
 
 
 > **Purpose of this file:** Give coding agents and teammates a single source of truth for the product vision, hackathon storytelling, demo priorities, and constraints discussed so far. Read this before suggesting features, making architectural decisions, implementing flows, or writing the pitch.

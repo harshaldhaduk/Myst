@@ -25,90 +25,139 @@ import java.util.Locale
 import java.util.UUID
 
 /**
- * One daily reminder per saved time. Speech plays through normal media audio, which reaches the
- * glasses over Bluetooth when they are connected. This does not track whether a dose was taken.
+ * Dose reminders on Android AlarmManager (host OS, like TTS: see Q11/D5). Each medication gets its
+ * stages for the current dose; each alarm re-checks "reported taken" when it fires, and the last
+ * stage schedules the next day. Speech plays through normal media audio, which reaches the glasses
+ * over Bluetooth when they are connected.
  */
 object DoseReminders {
   private const val TAG = "Myst:Doses"
   private const val EXTRA_MED = "med"
   private const val EXTRA_STAGE = "stage"
+  private const val EXTRA_DOSE_TIME = "doseTime"
+  private const val PREFS = "dose_reminders"
+  private const val KEY_FAST = "fastDemo"
   const val CHANNEL_REMINDERS = "dose_reminders"
+  const val CHANNEL_ALERTS = "caregiver_alerts"
 
   val capability =
       Capability(
           "Medication reminders",
           Label.LIVE,
-          "One daily Android alarm on this phone, spoken with the OS voice (not a Meta API)",
+          "Android alarms on this phone, spoken with the OS voice; again at +10 and +20 min (not a Meta API)",
           blockedBy = "D5 reading: are OS alarms acceptable?",
       )
+
+  val alertCapability =
+      Capability(
+          "Caregiver alert",
+          Label.MOCK,
+          "A missed dose shows as a notification on this phone; WhatsApp sending is a mock",
+          blockedBy = "Q13 (WhatsApp needs a server-held token)",
+      )
+
+  fun fastDemo(context: Context): Boolean =
+      context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_FAST, false)
+
+  fun setFastDemo(context: Context, on: Boolean) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_FAST, on).apply()
+  }
+
+  private fun timing(context: Context) = if (fastDemo(context)) DoseSchedule.FAST_DEMO else DoseSchedule.NORMAL
 
   fun canScheduleExact(context: Context): Boolean =
       context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
 
-  /** Re-plan one daily alarm per reminder. Call after setup changes, at start and at boot. */
+  /** Re-plan every medication's upcoming stages. Call after setup changes, at start and at boot. */
   fun rescheduleAll(context: Context) {
     val meds = HouseholdStore(context).medications()
-    meds.forEach {
-      cancel(context, it.id) // Also removes follow-up alarms left by an older build.
-      schedule(context, it, DoseSchedule.nextReminderTime(it, System.currentTimeMillis()))
-    }
+    meds.forEach { schedule(context, it, DoseSchedule.currentDoseTime(it, System.currentTimeMillis(), timing(context))) }
   }
 
   fun cancel(context: Context, medId: String) {
     val am = context.getSystemService(AlarmManager::class.java)
-    DoseStage.entries.forEach { am.cancel(pending(context, medId, it)) }
+    DoseStage.entries.forEach { am.cancel(pending(context, medId, it, 0L)) }
   }
 
-  private fun schedule(context: Context, med: Medication, doseTime: Long) {
+  /** Demo control (R15): run the reminder now, with follow-ups timed from now. */
+  fun remindNow(context: Context, med: Medication) {
+    val now = System.currentTimeMillis()
+    cancel(context, med.id)
+    schedule(context, med, now, skipFirst = true)
+    fire(context, med, DoseStage.REMIND, now)
+  }
+
+  private fun schedule(context: Context, med: Medication, doseTime: Long, skipFirst: Boolean = false) {
     val am = context.getSystemService(AlarmManager::class.java)
     val now = System.currentTimeMillis()
-    if (doseTime <= now) return
-    val pi = pending(context, med.id, DoseStage.REMIND)
-    if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, doseTime, pi)
-    else am.setWindow(AlarmManager.RTC_WAKEUP, doseTime, 60_000L, pi)
+    DoseSchedule.offsets(med, timing(context)).forEach { (stage, offsetMin) ->
+      if (skipFirst && stage == DoseStage.REMIND) return@forEach
+      val at = doseTime + offsetMin * 60_000L
+      if (at <= now) return@forEach
+      val pi = pending(context, med.id, stage, doseTime)
+      if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+      else am.setWindow(AlarmManager.RTC_WAKEUP, at, 60_000L, pi)
+    }
     Log.i(TAG, "scheduled ${med.id.take(8)} for ${DoseSchedule.formatTimeOfDay(doseTime)}")
   }
 
-  private fun pending(context: Context, medId: String, stage: DoseStage): PendingIntent =
+  private fun pending(context: Context, medId: String, stage: DoseStage, doseTime: Long): PendingIntent =
       PendingIntent.getBroadcast(
           context,
           (medId + stage.name).hashCode(),
           Intent(context, DoseAlarmReceiver::class.java)
               .putExtra(EXTRA_MED, medId)
-              .putExtra(EXTRA_STAGE, stage.name),
+              .putExtra(EXTRA_STAGE, stage.name)
+              .putExtra(EXTRA_DOSE_TIME, doseTime),
           PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
       )
 
-  /** What happens at the reminder time. Old follow-up alarms are ignored. */
-  internal fun fire(context: Context, med: Medication, stage: DoseStage, onDone: () -> Unit = {}) {
-    if (stage != DoseStage.REMIND) return onDone()
+  /** What happens when a stage fires. Returns after posting; speech finishes asynchronously. */
+  internal fun fire(context: Context, med: Medication, stage: DoseStage, doseTime: Long, onDone: () -> Unit = {}) {
     val store = HouseholdStore(context)
+    val reported = DoseSchedule.reportedTaken(med, doseTime, store.events())
+    if (reported != null) {
+      Log.i(TAG, "${stage.name}: already reported taken, nothing to do")
+      if (stage == DoseStage.WINDOW_CLOSED) scheduleNextDay(context, med, doseTime)
+      onDone()
+      return
+    }
     val name = med.labelName
     val lines = DoseSchedule.spokenLines(med, stage)
+    if (stage == DoseStage.WINDOW_CLOSED) {
+      val time = DoseSchedule.formatTime(med.doseMinuteOfDay)
+      store.log(Event(UUID.randomUUID().toString(), EventType.DOSE_MISSED, System.currentTimeMillis(), medicationId = med.id, detail = "not reported taken by window close ($time)"))
+      notify(context, CHANNEL_ALERTS, "Missed dose: $name", "Scheduled $time; not reported taken. (Alert on this phone; WhatsApp is a mock, Q13.)", med.id.hashCode() + 1)
+      scheduleNextDay(context, med, doseTime)
+      onDone()
+      return
+    }
+
     store.logReminder(
         Event(
             UUID.randomUUID().toString(),
-            EventType.DOSE_REMINDED,
+            if (stage == DoseStage.REMIND) EventType.DOSE_REMINDED else EventType.DOSE_REREMINDED,
             System.currentTimeMillis(),
             medicationId = med.id,
         ),
     )
     notify(context, CHANNEL_REMINDERS, "Time for $name", lines.joinToString(" "), med.id.hashCode())
-    scheduleNextDay(context, med)
     val people = PeopleStore(context).all()
     val guarded = lines.mapNotNull { (ResponseGuard.check(it, null, people) as? ResponseGuard.Decision.Pass)?.line?.text }
     speak(context, guarded, onDone)
   }
 
-  private fun scheduleNextDay(context: Context, med: Medication) {
+  private fun scheduleNextDay(context: Context, med: Medication, doseTime: Long) {
+    // Always plan from the real dose time, even after a "remind now" demo.
     HouseholdStore(context).medications().firstOrNull { it.id == med.id }?.let { real ->
-      schedule(context, real, DoseSchedule.nextReminderTime(real, System.currentTimeMillis()))
+      schedule(context, real, DoseSchedule.doseTimeOn(real, doseTime + 24 * 60 * 60_000L))
     }
   }
 
   private fun notify(context: Context, channel: String, title: String, text: String, id: Int) {
     val nm = context.getSystemService(NotificationManager::class.java)
     nm.createNotificationChannel(NotificationChannel(CHANNEL_REMINDERS, "Dose reminders", NotificationManager.IMPORTANCE_HIGH))
+    nm.createNotificationChannel(NotificationChannel(CHANNEL_ALERTS, "Caregiver alerts", NotificationManager.IMPORTANCE_HIGH))
     val open =
         PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
     runCatching {
@@ -163,19 +212,19 @@ object DoseReminders {
         }
   }
 
-  internal fun parse(intent: Intent): Pair<String, DoseStage>? {
+  internal fun parse(intent: Intent): Triple<String, DoseStage, Long>? {
     val med = intent.getStringExtra(EXTRA_MED) ?: return null
     val stage = intent.getStringExtra(EXTRA_STAGE)?.let { runCatching { DoseStage.valueOf(it) }.getOrNull() } ?: return null
-    return med to stage
+    return Triple(med, stage, intent.getLongExtra(EXTRA_DOSE_TIME, 0L))
   }
 }
 
 class DoseAlarmReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
-    val (medId, stage) = DoseReminders.parse(intent) ?: return
+    val (medId, stage, doseTime) = DoseReminders.parse(intent) ?: return
     val med = HouseholdStore(context).medications().firstOrNull { it.id == medId } ?: return
     val result = goAsync()
-    DoseReminders.fire(context, med, stage) { result.finish() }
+    DoseReminders.fire(context, med, stage, doseTime) { result.finish() }
   }
 }
 

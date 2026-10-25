@@ -14,7 +14,7 @@ Use consenting teammates only. Face ID is an experimental, unapproved developer 
 1. Film the wearer asking “Who is this?” with the enrolled person in view. Listen for the earcon and hedged cue. The wearer then turns to the person and starts a real conversation using the saved context. Capture the glasses, phone status, and wearer response in one run where practical.
 2. Ask with an unenrolled consenting teammate in view. Myst should say “I'm not sure who that is.” Stop if it names anyone. For a no-face check, point away from people. For a network failure, expect “I can't check right now”; for camera failure, “I can't see right now.”
 3. Show Setup > Family briefly: consent, memory editing, and revoke. Revoke only after the filmed recognition; it removes that person's enrollment, photo, and sighting history. Re-enrollment needs fresh consent and a new glasses photo.
-4. If demonstrating a reminder, use the Android time picker in Setup > Reminders to schedule one daily reminder a couple of minutes ahead. Show only its notification and caregiver-entered spoken line; Myst does not track whether the medicine was taken or send a missed-dose alert.
+4. If demonstrating a reminder, schedule it a couple of minutes ahead in Setup > Reminders. Label the dose as **reported taken** if logged. A phone notification is not a WhatsApp delivery.
 
 ## Fallback and reset
 

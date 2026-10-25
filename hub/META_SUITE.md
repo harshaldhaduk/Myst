@@ -182,13 +182,13 @@ Mirrors the PRD table, which also records what is built on `main`. Detail and so
 | Audio to wearer | No DAT call; Android audio over A2DP [Docs]. Heard on the glasses with Meta's sample and, on 2026-10-25, Myst's unsure TTS via Home backup [Verified on device, user report; not timed]. | Live |
 | Speech out | No Meta TTS [Docs] | Android TextToSpeech, labeled OS (D17, Proposed) |
 | Speech in | HFP mic plus Muse Voice Transcribe realtime or file upload, or DAT Speech (experimental) [Docs]. D25 spike: HFP + one DAT photo + wearer transcription worked; DAT Speech sharing and other-speaker pickup unproved [Verified on device, partial]. | DAT Speech (D17); conversation nudge paused (D25) |
-| Voice or button trigger | Hey Meta launches the app only; Inputs is experimental and Developer Center approval-gated; Speech phrase in session is possible [Docs]. No supported physical touch event is established on our pair. | DAT Speech phrase (D17) plus quiet Home backup. The speculative MediaSession tap handler was removed (D28). |
+| Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Speech phrase (D17) plus a quiet "Backup: Who is this?" text button on Home (D24); glasses tap via MediaSession untested |
 | Person identification | Policy-gated, no Meta matcher [Docs]. Muse Spark comparison works in dev testing [Verified on device, partial]. | `MuseIdentity`, dev builds only (D12); never presented as Meta-approved |
 | Memory storage | Caregiver records on the phone | Live (app logic) |
 | Label reading and bottle check | Muse Spark image understanding plus structured output [Docs]. | Removed (D24, efc2270): medication sends no frame to Muse |
 | Muse access | HTTPS, key from dashboard; region claims conflict (section 10). Our key works [Verified on device]. | Live |
-| Dose scheduling | Android alarms (host OS) | One daily reminder per saved time (D27); new behavior untested on phone |
-| Caregiver alerts | WhatsApp Cloud API, approved template, token problem (section 5) | Removed from active reminder flow (D27); not in demo |
+| Dose scheduling | Android alarms (host OS) | Live; OS feature, confirm under D5 |
+| Caregiver alerts | WhatsApp Cloud API, approved template, token problem (section 5) | Live or mock; see Q13 |
 | Face blur before Muse | No Meta tool found | No blur; only face ID sends frames (on request, D12 dev builds); medication sends none (D24) |
 | Object finding | SAM 3.1 or Muse Spark grounding exists [Docs] | Roadmap (D8) |
 
@@ -201,10 +201,10 @@ Wearer        Glasses              Android phone (Myst)                       Me
                                     identity interface (MuseIdentity, D12 dev only)
                                     caregiver records (on phone, family-written)
                                     Muse Spark: face match only (D12) --------> api.meta.ai/v1
-                                    daily reminders: Android alarms, no frame (D27)
+                                    dose reminders: Android alarms, no frame (D24)
                                     guard: uncertainty, source records, 20 words
  whisper <--- speaker A2DP <-----   Android TextToSpeech (OS, D17)
-                                    WhatsApp template alert (not built; outside current demo)
+                                    WhatsApp template alert ------------------> Graph API
 ```
 
 Requirement impact (full list in `hub/PRD.md`):
@@ -212,7 +212,7 @@ Requirement impact (full list in `hub/PRD.md`):
 - **R3 and R4:** `MuseIdentity` (D12) plus a "not sure" path; never present it as Meta-approved.
 - **R5:** no retention is achievable on our side; never persist frames. Blur has no Meta tool.
 - **R7 and R8:** removed by D24. Medication is reminders only and sends no frame to Muse.
-- **R13 and R20:** removed from the active reminder flow by D27; any future WhatsApp alert still needs a template and Q13.
+- **R13 and R20:** WhatsApp template plus Q13.
 - **Data location:** caregiver records stay on the phone; frames go only to Meta's API in Standard mode, only for face ID, only when the wearer triggered, and are not stored.
 
 ## 9. Verify on the device (extends the spike in `hub/LOOP.md`)

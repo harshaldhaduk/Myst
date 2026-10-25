@@ -13,6 +13,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +27,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.myst.core.records.Place
+import com.myst.ui.theme.Myst
 
 // Caregiver setup for Lane 3: rooms. Reference photos come from the glasses photo card above the
 // Places list, so they match what the wearer will see. Medicine setup lives in SetupScreen.kt.
@@ -107,7 +109,19 @@ internal fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> U
       Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
       verticalAlignment = Alignment.CenterVertically,
   ) {
-    Switch(checked, onCheckedChange = null)
+    Switch(
+        checked,
+        onCheckedChange = null,
+        colors =
+            SwitchDefaults.colors(
+                checkedThumbColor = Myst.White,
+                checkedTrackColor = Myst.LilacStrong,
+                checkedBorderColor = Myst.LilacStrong,
+                uncheckedThumbColor = Myst.Lilac,
+                uncheckedTrackColor = Myst.White,
+                uncheckedBorderColor = Myst.Lilac,
+            ),
+    )
     Text("  $label")
   }
 }

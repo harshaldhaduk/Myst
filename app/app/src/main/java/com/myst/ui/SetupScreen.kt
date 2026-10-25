@@ -171,6 +171,7 @@ private fun AddPersonCard(
         Myst.White,
         onCapture,
         onDiscard,
+        accent = Myst.Blush,
     )
     Field(name, { name = it }, "Their name")
     Field(relationship, { relationship = it }, "Who they are to her, e.g. son")
@@ -366,7 +367,7 @@ private fun MedicinePart(viewModel: EnrollViewModel, ui: EnrollUiState, connecte
       PhotoStrip(med.bottlePhotoFiles, viewModel)
       Text(
           taken?.let { "Reported taken at ${DoseSchedule.formatTimeOfDay(it.atMillis)}" }
-              ?: "Next dose ${DoseSchedule.formatTimeOfDay(dose)} · not reported taken",
+              ?: "Dose at ${DoseSchedule.formatTimeOfDay(dose)} · not reported taken",
           style = MaterialTheme.typography.labelLarge,
       )
       Row(verticalAlignment = Alignment.CenterVertically) {
@@ -420,6 +421,7 @@ private fun MedicineForm(
         Myst.White,
         onCapture,
         viewModel::discardPhoto,
+        accent = Myst.Periwinkle,
     )
     Field(labelName, { labelName = it }, "Name on the label, e.g. Lisinopril 10 mg")
     Field(description, { description = it }, "How she'd describe it, e.g. the small white bottle")

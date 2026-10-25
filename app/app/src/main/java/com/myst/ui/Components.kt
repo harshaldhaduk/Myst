@@ -57,7 +57,7 @@ internal fun Panel(
     padding: Dp = 20.dp,
     content: @Composable () -> Unit,
 ) {
-  Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(radius), color = tint) {
+  Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(radius), color = tint, contentColor = Myst.Ink) {
     Column(Modifier.padding(padding), verticalArrangement = Arrangement.spacedBy(12.dp)) { content() }
   }
 }
@@ -165,6 +165,7 @@ internal fun GlassesPhotoCard(
     tint: Color,
     onCapture: () -> Unit,
     onDiscard: () -> Unit,
+    accent: Color = Myst.Lilac,
 ) {
   Panel(tint = tint, radius = 24.dp, padding = 16.dp) {
     val pending = ui.pending
@@ -173,7 +174,7 @@ internal fun GlassesPhotoCard(
       PillButton(
           if (ui.capturing) "Taking photo…" else if (connected) "Take a photo with the glasses" else "Connect the glasses first",
           onCapture,
-          color = Myst.White,
+          color = accent,
           enabled = connected && !ui.capturing,
       )
     } else {

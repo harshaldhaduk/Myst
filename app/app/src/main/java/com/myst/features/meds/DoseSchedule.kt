@@ -59,21 +59,25 @@ object DoseSchedule {
 
   /**
    * What Myst says for a stage, one short line each so each passes the guard on its own. Every
-   * fact is the caregiver's (D6): name, where it's kept, the water and food rule. No dosing advice.
+   * fact is the caregiver's (D6): name, pill count, bottle description, location, and water/food rules.
    */
   fun spokenLines(med: Medication, stage: DoseStage): List<String> {
     val name = med.labelName
     val where = med.spokenWhere()
+    val count = "Take ${med.pillsPerDose} ${if (med.pillsPerDose == 1) "pill" else "pills"}."
+    val bottle = med.plainDescription.trim().trimEnd('.').takeIf { it.isNotBlank() }?.let { "Look for $it." }
     return when (stage) {
       DoseStage.REMIND ->
           listOfNotNull(
               "It's time for your $name.",
+              count,
+              bottle,
               where?.let { "It's $it." },
               if (med.withWater) "Take it with a glass of water." else null,
               if (med.withFood) "Have something to eat first." else null,
           )
       DoseStage.REREMIND_1, DoseStage.REREMIND_2 ->
-          listOf("Just a reminder, your $name is ready for you" + (where?.let { ", $it." } ?: "."))
+          listOfNotNull("Just a reminder, your $name is ready for you" + (where?.let { ", $it." } ?: "."), count, bottle)
       DoseStage.WINDOW_CLOSED -> emptyList()
     }
   }

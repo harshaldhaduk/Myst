@@ -27,7 +27,7 @@ import com.myst.features.faces.MuseIdentity
 import com.myst.muse.MuseClient
 import com.myst.features.faces.MockIdentity
 import com.myst.features.faces.WhisperResult
-import com.myst.features.faces.WhoIsThisPhrase
+import com.myst.features.VoiceCommands
 import com.myst.glasses.AndroidTtsSpeaker
 import com.myst.glasses.CaptureResult
 import com.myst.glasses.CaptureTimings
@@ -298,11 +298,15 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     viewModelScope.launch {
       val failure =
           gateway.startListening(requestPermission) { text ->
-            if (WhoIsThisPhrase.matches(text)) whoIsThis(requestPermission)
+            when (VoiceCommands.match(text)) {
+              VoiceCommands.Command.WHO_IS_THIS -> whoIsThis(requestPermission)
+              VoiceCommands.Command.WHAT_IS_THIS -> checkBottle(requestPermission)
+              null -> Unit
+            }
           }
       _ui.update {
         it.copy(
-            message = failure?.let { f -> "Listening failed: $f" } ?: "Listening for \"Who is this?\"",
+            message = failure?.let { f -> "Listening failed: $f" } ?: "Listening for \"Who is this?\" and \"What is this?\"",
             needsGlassesUpdate = failure?.contains("update") == true,
         )
       }

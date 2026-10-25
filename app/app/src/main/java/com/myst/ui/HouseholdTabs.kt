@@ -33,6 +33,7 @@ import androidx.compose.material3.FilterChip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myst.core.Capability
 import com.myst.core.Label
+import com.myst.features.VoiceCommands
 import com.myst.features.meds.BottleCheck
 import com.myst.features.meds.DoseSchedule
 
@@ -111,16 +112,35 @@ fun PlacesTab(viewModel: EnrollViewModel, ui: EnrollUiState) {
 }
 
 @Composable
-private fun BottleTestSection(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle: () -> Unit) {
-  Section("What bottle is this? (test)") {
+private fun BottleTestSection(
+    ui: EnrollUiState,
+    onCheckBottle: () -> Unit,
+    listening: Boolean,
+    onListening: (Boolean) -> Unit,
+    glassesConnected: Boolean,
+) {
+  Section("What is this?") {
     CapabilityRow(BottleCheck.capability)
+    CapabilityRow(VoiceCommands.capability)
+    Row(
+        Modifier.toggleable(
+            value = listening,
+            enabled = glassesConnected || listening,
+            role = Role.Switch,
+            onValueChange = onListening,
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Switch(listening, onCheckedChange = null, enabled = glassesConnected || listening)
+      Text(if (listening) "  Listening: say \"What is this?\"" else "  Listen for \"What is this?\"")
+    }
     Text(
-        "Hold one bottle close with the label toward the glasses, no faces in view. Try each " +
-            "bottle several times, and a bottle that is not hers: it must never say a wrong name.",
+        "Hold one medicine close with the label toward the glasses, no faces in view. Try each " +
+            "one several times, and something that is not hers: it must never say a wrong name.",
         style = MaterialTheme.typography.bodySmall,
     )
     Button(onClick = onCheckBottle, enabled = !ui.checkingBottle && ui.medications.isNotEmpty()) {
-      Text(if (ui.checkingBottle) "Checking…" else "What bottle is this?")
+      Text(if (ui.checkingBottle) "Checking…" else "What is this?")
     }
     ui.lastBottle?.let { b ->
       b.captureNote?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -135,8 +155,15 @@ private fun BottleTestSection(viewModel: EnrollViewModel, ui: EnrollUiState, onC
 }
 
 @Composable
-fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle: () -> Unit) {
-  BottleTestSection(viewModel, ui, onCheckBottle)
+fun MedicationsTab(
+    viewModel: EnrollViewModel,
+    ui: EnrollUiState,
+    onCheckBottle: () -> Unit,
+    listening: Boolean,
+    onListening: (Boolean) -> Unit,
+    glassesConnected: Boolean,
+) {
+  BottleTestSection(ui, onCheckBottle, listening, onListening, glassesConnected)
 
   var editing by remember { mutableStateOf<Medication?>(null) }
   var labelName by remember { mutableStateOf("") }

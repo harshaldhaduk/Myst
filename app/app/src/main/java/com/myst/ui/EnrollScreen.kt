@@ -47,7 +47,7 @@ import com.myst.core.Capability
 import com.myst.core.Label
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
-import com.myst.features.faces.WhoIsThisPhrase
+import com.myst.features.VoiceCommands
 import com.myst.glasses.GlassesState
 
 @Composable
@@ -145,7 +145,7 @@ fun EnrollScreen(
       }
 
       if (tab == 1) {
-        MedicationsTab(viewModel, ui, onCheckBottle)
+        MedicationsTab(viewModel, ui, onCheckBottle, listening, onListening, glasses is GlassesState.Connected)
       }
       if (tab == 2) {
         PlacesTab(viewModel, ui)
@@ -213,7 +213,7 @@ fun EnrollScreen(
             }
           }
         }
-        CapabilityRow(WhoIsThisPhrase.capability)
+        CapabilityRow(VoiceCommands.capability)
         Row(verticalAlignment = Alignment.CenterVertically) {
           Switch(
               checked = listening,
@@ -221,7 +221,8 @@ fun EnrollScreen(
               onCheckedChange = onListening,
           )
           Text(
-              if (listening) "  Listening: say \"Who is this?\"" else "  Listen for \"Who is this?\"",
+              if (listening) "  Listening: say \"Who is this?\" or \"What is this?\""
+              else "  Listen for \"Who is this?\" and \"What is this?\"",
               Modifier.weight(1f),
           )
         }

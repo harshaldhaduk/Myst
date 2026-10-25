@@ -1,6 +1,6 @@
 # Mayank (mayank-jain632) · Lane 2 (files shared with RJ): Familiar Faces hardening, Muse key handling
 
-Updated 02:35 by Claude Code
+Updated 02:45 by Codex
 
 **Shipped** (on `main`, pushed: ef9d32c, 7aeed51, efc2270)
 - Glasses battery UI: Home observes DAT 1.0.1 device metadata for one connected pair and displays a valid percentage in the status pill and Glasses card; otherwise the card says battery unavailable. Built in an isolated worktree so the D25 conversation spike changes in the shared checkout are untouched.
@@ -9,16 +9,22 @@ Updated 02:35 by Claude Code
 - D22: Muse key no longer in `BuildConfig`; `scripts/provision-muse-key.sh` + `core/secrets/MuseKeyStore.kt` (Android Keystore AES/GCM).
 - Lint error in `GlassesTapTrigger.kt` fixed (SDK_INT check). `assembleDebug` and `lintDebug` pass (0 errors).
 - efc2270 (D24): Reminders page replaces Medicine; bottle check, room check, "What is this?", Places and the two Home buttons removed (archived at tag `archive/bottle-check-places-home-buttons`); quiet "Backup: Who is this?" text button at the bottom of Home. 7aeed51 alone did not build (it deleted files still in use); efc2270 fixes that. Both pushed.
+- D25 feasibility tooling: a debug-only 30-second consent-driven HFP recording control on Home. It keeps PCM and WAV in RAM, calls Meta's `/v1/asr/transcribe` as multipart DIARIZATION WAV and a Spark structured summary, and reports route/photo/API status. It is a spike, not a visit feature. `docs/demo-script.md` is a draft operator procedure.
+- MuseClient no longer logs model-output snippets on malformed JSON; conversation text could otherwise appear in diagnostics.
 
 **In flight**
-- Proposed next: conversation nudge (in-memory transcript); awaiting the team. Medication as reminders only is done (D24, efc2270).
+- Conversation nudge stopped at its required device spike: DAT Speech coexistence is not established, the other speaker was not tested, and Spark returned BAD_ANSWER. D25 remains Proposed. Medication as reminders only is done (D24, efc2270).
 
 **Verified on device**
-- 02:20: efc2270 installed on the S23 Ultra with `adb install -r`; family data intact (screenshot check). Nothing else run on the device yet: no reminder fired, no trigger, no Muse key provisioning.
+- 02:20: efc2270 installed on the S23 Ultra with `adb install -r`; family data intact (screenshot check). No reminder fired then. The task handoff says the Muse key was provisioned afterward; this session did not inspect or reveal it.
+- 2026-10-25 ~02:38, S23 Ultra, Meta AI app 295.0.0.37.164, RB Meta 02WM, firmware not recorded: `adb install -r` of the D25 spike build succeeded. With a consenting teammate, user reported `HFP routed=true`, photo OK during HFP, and the temporary Meta ASR transcript correctly included the wearer's taco conversation. The teammate did not speak in that first clip. Spark reported `BAD_ANSWER`; exact ASR/Spark latencies were not supplied. A later "Who is this?" attempt was intermittently ignored or produced an earcon with no audible answer; when the earcon played, Home's "Last thing Myst said" stayed empty. The result line for that later run was not reported. These are user-observed outcomes, not a measured reliability rate.
+- 2026-10-25 after the spike, with Start Myst on and the glasses pointed away from people, the user tapped Home's backup "Who is this?" control. Home's last-said card updated and Myst's unsure line was heard through the glasses. This separates the working backup path from the unreliable spoken trigger; it is not a timed run and does not prove a stranger negative case.
+- The revised spike APK (RAM buffer wipe, debug-only microphone permission, no model-output snippet logging) passed `assembleDebug lintDebug` and installed with `adb install -r` successfully. No second run of this revised APK is claimed.
 
 **Gaps**
 - Battery percentage has not been checked against the real glasses; the UI reading is not a battery-life measurement.
 - Stranger, no-face and failure trials (gate A4, E2) after D21 lands.
+- D25: confirm DAT Speech phrase while AudioRecord is active, hear the teammate at about 1 m, collect the ASR/Spark timings, and diagnose Spark's invalid structured answer. The debug control does not start a visit or whisper a nudge.
 - Rotate the old Muse key if any APK built before D22 was shared.
 
 **Blocked, or need from someone**

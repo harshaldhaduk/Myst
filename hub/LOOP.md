@@ -73,11 +73,15 @@ Results so far (S23 Ultra, Meta AI app 295.0.0.37.164, glasses RB Meta 02WM, fir
 |---|---|
 | 1 | Pass: Meta's sample and Myst ran with Mock Device Kit on an emulator (one mock capture 253 ms; emulator number only). |
 | 2 | Pass, partly: photos arrive from the real glasses (76-102 KB JPEG). Model not recorded; capture not timed (about 0.5 s by feel in the sample). |
-| 3 | Pass, partly: phone audio heard on the glasses; call-to-sound not timed. |
+| 3 | Pass, partly: phone audio heard on the glasses; on 2026-10-25 Myst's unsure TTS was also heard through the glasses via Home backup control. Call-to-sound not timed. |
 | 4 | Not run (no 20-run median). |
 | 5 | Pass, partly: Muse Spark answered a glasses photo correctly; 0.98 s with `reasoning_effort: minimal` (one run); face-match calls 1.5-2.5 s (5 runs). Cost per call not recorded. |
-| 6 | Partly: HFP gave one silent and one good clip. Muse Voice Transcribe not tried; DAT Speech used instead (D17). |
+| 6 | Partly: earlier HFP gave one silent and one good clip. On 2026-10-25 a D25 debug run routed HFP, captured a DAT photo and got a correct Muse Voice Transcribe transcript of the wearer's taco conversation (user report; no timing supplied). The second speaker was silent, so 1 m pickup is untested. DAT Speech phrase was intermittently ignored or followed by an earcon without audible speech; simultaneous reliability is not established. Spark summary failed BAD_ANSWER. See `hub/status/mayank.md`. |
 
 Section 4 problems 1 and 2 are answered by D17 (Proposed): DAT Speech phrase plus phone button, Android TTS. Problem 4 (screen-off) is still unverified.
 
 Record results in the owning lane's `hub/status/` file and in `AGENTS.md` "Verified implementation facts" only after they ran on the real device.
+
+### D25 conversation spike stop point (2026-10-25)
+
+Meta's current [speech-to-text guide](https://dev.meta.ai/docs/speech-to-text) specifies a multipart file request with `request` JSON and `audio` WAV (mono 16-bit PCM, 16 or 24 kHz), up to 32 MB and 10 minutes. A debug-only 30-second RAM capture uses `DIARIZATION` mode. HFP routing, one DAT photo during HFP, and transcription of the wearer's speech were observed by Mayank; this does not prove DAT Speech shares the mic or that the other person is audible. The full visit feature is paused under D25's stop rule. Next spike: have the second person speak distinct words at about 1 m while the wearer stays silent, check that a DAT Speech phrase is received during AudioRecord, and read both latency values. If DAT Speech fails, consider Muse Transcribe as the phrase listener, subject to a new live test and the same consent/retention rules.

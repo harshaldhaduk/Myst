@@ -121,6 +121,7 @@ These are **hard release gates** independent of the 100-point score. Any failure
 | **0:25–0:45** | Family enrollment/consent and Daniel's approved relationship memory are visible. | H5, G01, G02, O1 |
 | **0:45–1:20** | Margaret asks for help; real authorized capture/model matches Daniel; private cue plays. Include enough product/interface proof to show the actual call. | A1, A2, H4, E1 |
 | **1:20–1:55** | Margaret asks about a shared memory. The answer comes from the enrolled context. **She turns to Daniel and starts a real conversation.** | H2, H3, A3, O4, E1 |
+| **Current filming adjustment** | The follow-up in the 1:20–1:55 row is unbuilt. Until a live follow-up passes, film the caregiver memory in the initial guarded cue and the resulting real human conversation; leave A3 unclaimed. The D25 conversation nudge is only a debug feasibility spike and does not belong in the hero footage yet. | H2/H3/O4 can be evidenced; A3 stays FAIL. |
 | **1:55–2:15** | Very fast explanation: input, actual model(s), approved context store, guardrails, output. Include the uncertainty pathway if feasible. | A4, A5, E4 |
 | **2:15–2:40** | Explain tools/harnesses/models **actually used to build and run** this project, plus why glasses are the right interface. | A5, O3, E3 |
 | **2:40–2:45** | Finish with the connection thesis, not a feature list. | H6, E3 |
@@ -220,12 +221,12 @@ These are **hard release gates** independent of the 100-point score. Any failure
 | H1 | FAIL | No script or video yet. | Lane 5: write the 25-30 s opening. |
 | H2 | FAIL | No demo clip of Margaret turning to Daniel. | Lane 5: film after E2 runs. |
 | H3 | PENDING | Built: `Person.memories` -> `FamiliarFaces.whisperFor` -> `ResponseGuard`. No recorded record-to-output trace. | Lane 2: log one run with record id and spoken line. |
-| H4 | PENDING | Built: DAT Speech phrase, glasses tap (untested on glasses), quiet "Backup: Who is this?" text button at the bottom of Home (D24; the two Home buttons are gone). Audio on glasses for this build not recorded. | Lane 2: record one on-glasses run. |
+| H4 | PENDING | Built: DAT Speech phrase, glasses tap (untested on glasses), quiet Home backup control. On 2026-10-25 the backup produced an audible unsure line through the glasses (user report, `hub/status/mayank.md`); spoken trigger remained intermittent. | Lane 2: record an uninterrupted wearer-initiated glasses-triggered run. |
 | H5 | PENDING | Built: Setup > Family (consent, memories add/delete/reorder, revoke deletes record, photo, visits). Revoke not re-checked on a phone with the D19 build. | Lane 4: revoke-then-ask test on the phone. |
 | H6 | FAIL | No judge-facing statement or clip. | Lane 5. |
 | A1 | PENDING | Built: `MuseIdentity` (D12). Status file: 5 of 5 match verdicts, 2 with two enrolled; log holds Muse's verdict, not ground truth. | Lane 2: logged run with a second enrolled person. |
 | A2 | PENDING | Path built end to end; no timestamped trace or video. | Lane 2: capture one trace. |
-| A3 | FAIL | Follow-up "What did we talk about last time?" not built. | Lane 2: build or cut from the story. |
+| A3 | FAIL | Follow-up "What did we talk about last time?" not built. D25 nudge remains a stopped spike: wearer ASR and photo during HFP observed, second speaker/DAT Speech sharing not proved, Spark BAD_ANSWER (`hub/status/mayank.md`). | Lane 2: keep follow-up out of the video until a live run passes. |
 | A4 | FAIL | No stranger, no-face or no-memory trials. D21 is on `main` (a Muse failure says "I can't check right now"). | Lane 2: 3/3 negatives. |
 | A5 | FAIL | No architecture walkthrough or narration. Inputs: `hub/META_SUITE.md` section 8, `hub/PRD.md` section 2. | Lane 5. |
 | O1 | FAIL | Differentiator sentence exists (section 1); no matching video scene. | Lane 5. |
@@ -236,7 +237,7 @@ These are **hard release gates** independent of the 100-point score. Any failure
 | E2 | FAIL | No 5-run log, no negative tests, no reset, no unit tests (D13 not adopted). | Lane 2. |
 | E3 | FAIL | Video not recorded. | Lane 5. |
 | E4 | PENDING | Real glasses capture and Muse calls (status files); mocks and experimental parts labeled in `core/Capability.kt` and on Home. MockIdentity removed and key out of the APK (D21, D22, ef9d32c); lint 0 errors. | Lane 2: run D21/D22 on the device. |
-| E5 | FAIL | No operator script, no reset, no recorded fallback. | Lane 5. |
+| E5 | FAIL | Draft `docs/demo-script.md` covers setup, run order and labeled fallback; no reset or recorded fallback, and no fresh-operator rehearsal. | Lane 5: rehearse and record fallback. |
 
 **Hard-gate status:** G01–G10 = `NOT VERIFIED` until every item is checked against evidence.
 
@@ -256,7 +257,7 @@ JUDGING-READY =
 ELSE: NOT JUDGING-READY; name the exact blockers.
 ```
 
-**Last audit:** `2026-10-25 02:35, docs against main efc2270, Claude Code (status files; D24 build installed on the S23 Ultra, nothing else run)`  
+**Last audit:** `2026-10-25 02:45, D25 debug spike user report and docs review; no scored gate newly passed`
 **Verified models/API calls:** `PARTIAL: muse-spark-1.3 calls recorded in hub/status/ (no inspectable trace)`  
 **Verified glasses hardware flow:** `PARTIAL: capture, Speech start, A2DP, MuseIdentity matches recorded in hub/status/; see AGENTS.md`  
 **Verified end-to-end live demo:** `NOT VERIFIED`  

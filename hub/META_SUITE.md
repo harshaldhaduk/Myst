@@ -136,7 +136,9 @@ Rate limits are per team: Spark 3,000 RPM and 4M TPM; Muse Image 150 RPM; Voice 
 
 **Structured output:** `text.format` with `type: "json_schema"` (Responses) or `response_format` (Chat Completions); generation is constrained to the schema; `strict: true` enforces a stricter subset; recursion is rejected; you still parse the JSON string yourself. Use it for match verdicts and the response composer so the guard can reject malformed output. **Tool calling:** `tools` with function definitions; `tool_choice` must be `"auto"`; always validate arguments yourself. [Docs]
 
-**Speech in:** Muse Voice Transcribe realtime at `wss://api.meta.ai/v1/asr/realtime` (raw 16-bit mono PCM, 16 or 24 kHz; modes `PUSH_TO_TALK`, `ENDPOINTING`, `DIARIZATION`; 60-minute sessions) or file upload at `POST /v1/asr/transcribe` (mono 16-bit WAV, 32 MB or 10 minutes). No word timestamps or confidence scores. Audio input to `muse-spark-1.3` is degraded; the docs recommend `muse-spark-1.2` for audio. **Speech out: none.** [Docs]
+**Speech in:** Muse Voice Transcribe realtime at `wss://api.meta.ai/v1/asr/realtime` (raw 16-bit mono PCM, 16 or 24 kHz; modes `PUSH_TO_TALK`, `ENDPOINTING`, `DIARIZATION`; 60-minute sessions) or file upload at `POST /v1/asr/transcribe` (multipart `request` JSON + `audio` WAV, mono 16-bit PCM at 16 or 24 kHz, 32 MB or 10 minutes). No word timestamps or confidence scores. Audio input to `muse-spark-1.3` is degraded; the docs recommend `muse-spark-1.2` for audio. **Speech out: none.** [Docs, rechecked 2026-10-25 at https://dev.meta.ai/docs/speech-to-text]
+
+**D25 device spike:** a debug-only 30-second HFP capture on the S23 Ultra routed to the glasses and sent a WAV to Muse Voice Transcribe; Mayank reported correct transcription of his own taco conversation and a successful DAT photo during HFP. The other speaker was silent in that clip. DAT Speech while HFP is active, second-speaker pickup and timing remain unverified; Spark structured summary returned BAD_ANSWER. No visit feature is built. [Verified on device, partial; `hub/status/mayank.md`]
 
 **Open-weight:** Muse Spark Open (816B MoE, self-host) and Muse Glimmer (edge-sized, Apache 2.0, text and image in, runs with llama.cpp, vLLM, SGLang or ExecuTorch). Whether self-hosting a Meta model on the phone counts as "Meta stack" is Q14. [Docs]
 
@@ -177,9 +179,9 @@ Mirrors the PRD table, which also records what is built on `main`. Detail and so
 |---|---|---|
 | Glasses model and developer access | DAT lists six models; needs V128 firmware and Meta AI V292 [Docs]. Registration works on ours [Verified on device]. Marketing model and firmware are Q1. | Live |
 | Camera frames | DAT stream or single photo; Bitmap or HEIC [Docs]. One photo per request reaches Myst [Verified on device]. Latency not timed. | Live; one photo per request |
-| Audio to wearer | No DAT call; Android audio over A2DP [Docs]. Heard on the glasses with Meta's sample [Verified on device]. | Live |
+| Audio to wearer | No DAT call; Android audio over A2DP [Docs]. Heard on the glasses with Meta's sample and, on 2026-10-25, Myst's unsure TTS via Home backup [Verified on device, user report; not timed]. | Live |
 | Speech out | No Meta TTS [Docs] | Android TextToSpeech, labeled OS (D17, Proposed) |
-| Speech in | HFP mic plus Muse Voice Transcribe realtime, or DAT Speech (experimental) [Docs]. DAT Speech starts on our glasses [Verified on device, partial]. | DAT Speech, experimental (D17) |
+| Speech in | HFP mic plus Muse Voice Transcribe realtime or file upload, or DAT Speech (experimental) [Docs]. D25 spike: HFP + one DAT photo + wearer transcription worked; DAT Speech sharing and other-speaker pickup unproved [Verified on device, partial]. | DAT Speech (D17); conversation nudge paused (D25) |
 | Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Speech phrase (D17) plus a quiet "Backup: Who is this?" text button on Home (D24); glasses tap via MediaSession untested |
 | Person identification | Policy-gated, no Meta matcher [Docs]. Muse Spark comparison works in dev testing [Verified on device, partial]. | `MuseIdentity`, dev builds only (D12); never presented as Meta-approved |
 | Memory storage | Caregiver records on the phone | Live (app logic) |

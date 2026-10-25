@@ -54,6 +54,7 @@ fun MystApp(
     onUnregister: () -> Unit,
     onCapture: () -> Unit,
     onWhoIsThis: () -> Unit,
+    onConversationSpike: () -> Unit,
     onMystOn: (Boolean) -> Unit,
     onOpenGlassesUpdate: () -> Unit,
 ) {
@@ -98,6 +99,7 @@ fun MystApp(
                     mystOn,
                     onMystOn,
                     onWhoIsThis,
+                    onConversationSpike,
                     onRegister,
                     onUnregister,
                     onOpenGlassesUpdate,

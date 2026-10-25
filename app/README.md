@@ -1,6 +1,6 @@
 # Myst Android app
 
-Android host app for Ray-Ban Meta glasses (DAT 1.0.1). State of `main` at efc2270; built vs missing per requirement is in `hub/PRD.md` section 4, device results in `AGENTS.md` "Verified implementation facts".
+Android host app for Ray-Ban Meta glasses (DAT 1.0.1). Built vs missing per requirement is in `hub/PRD.md` section 4, device results in `AGENTS.md` "Verified implementation facts".
 
 What it does:
 
@@ -10,7 +10,7 @@ What it does:
 - **Home:** When one pair of glasses is connected, the status pill and Glasses card show the battery percentage reported by DAT 1.0.1. If DAT has no valid reading, the card says "Battery unavailable". This has not yet been checked on real glasses.
 - **Removed (D24):** bottle check, room check, "What is this?", Places, the two Home buttons. Archived at git tag `archive/bottle-check-places-home-buttons`; restore a file with `git checkout archive/bottle-check-places-home-buttons -- <path>` (the tag is the commit before removal, d91d941; see what was removed with `git diff --stat archive/bottle-check-places-home-buttons efc2270 -- app/`). On first start the D24 build copies a medication's place name into its location, then deletes `places.json` and the household photos folder.
 
-Not built: the follow-up "What did we talk about last time?", demo reset, voice "Done", spoken already-taken line (R11), unit tests.
+Not built: the follow-up "What did we talk about last time?", the D25 conversation nudge, demo reset, voice "Done", spoken already-taken line (R11), unit tests. A debug-only Home control runs a consented 30-second HFP/Meta ASR feasibility spike; it is not a visit or a wearer-facing feature. It buffers audio only in RAM, wipes PCM after the call, and clears the temporary on-screen transcript after 90 seconds. The first run transcribed the wearer; another person's pickup and DAT Speech sharing are not verified.
 
 ## Build
 
@@ -23,8 +23,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 - **Face ID (D12, dev only, unapproved by Meta):** add `myst.allowFaceId=true` to `app/local.properties`. Enroll and photograph only consenting teammates.
-- **Muse key (D22):** not compiled into the APK. Put `MUSE_API_KEY=...` in the repo-root `.env` (git-ignored), install the debug build, then run `scripts/provision-muse-key.sh`. It pipes the key over `adb shell run-as` on stdin; the app encrypts it with the Android Keystore on next start and deletes the plaintext. Home shows "Muse key not set" until this is done. Reinstalling with `adb install -r` keeps the key; an uninstall deletes it. Not yet run on a phone.
+- **Muse key (D22):** not compiled into the APK. Put `MUSE_API_KEY=...` in the repo-root `.env` (git-ignored), install the debug build, then run `scripts/provision-muse-key.sh`. It pipes the key over `adb shell run-as` on stdin; the app encrypts it with the Android Keystore on next start and deletes the plaintext. Home shows "Muse key not set" until this is done. Reinstalling with `adb install -r` keeps the key; an uninstall deletes it. The task handoff says the S23 Ultra was provisioned; this session did not inspect the key.
 - Spoken lines (D21): "I think that's <Name>, your <relationship>." plus visit/memory under 20 words; "I'm not sure who that is." (unsure or no face); "I can't check right now." (Muse, network or missing key); "I can't see right now." (capture failed); "Face recognition isn't set up on this phone." (build without face ID). A short tone (OS audio) plays right after each trigger.
+- D25 debug spike needs Android microphone permission in addition to DAT's microphone permission. Start Myst first, obtain everyone's consent, then use the Home spike control. It routes Bluetooth HFP, records 30 seconds at 16 kHz, attempts a DAT photo at 10 seconds, then calls Meta Voice Transcribe and Spark. The result line reports status and timing; the transcript is temporary and never logged. Do not use this as evidence that conversation nudges work.
 
 ## Run on real glasses
 

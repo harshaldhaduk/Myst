@@ -26,6 +26,7 @@ import com.myst.muse.MuseClient
 import com.myst.core.secrets.MuseKeyStore
 import com.myst.features.faces.WhisperResult
 import com.myst.features.VoiceCommands
+import com.myst.features.conversation.ConversationSpike
 import com.myst.glasses.AndroidTtsSpeaker
 import com.myst.glasses.CaptureResult
 import com.myst.glasses.GlassesTapTrigger
@@ -63,6 +64,9 @@ data class EnrollUiState(
     val lastSaid: LastSaid? = null,
     /** Why voice listening isn't running while Myst is on, in plain words; null when it's fine. */
     val voiceProblem: String? = null,
+    val conversationSpikeRunning: Boolean = false,
+    val conversationSpikeReport: String? = null,
+    val conversationSpikeTranscript: String? = null,
 )
 
 /** [quiet] means Myst stayed silent or was unsure; [note] explains a missing photo, if any. */
@@ -284,6 +288,23 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
       }
 
   fun clearMessage() = _ui.update { it.copy(message = null) }
+
+  fun conversationSpikeDenied() {
+    _ui.update { it.copy(conversationSpikeReport = "Microphone permission denied; no recording started.") }
+  }
+
+  fun runConversationSpike(requestPermission: suspend (Permission) -> PermissionStatus) {
+    if (_ui.value.conversationSpikeRunning) return
+    _ui.update { it.copy(conversationSpikeRunning = true, conversationSpikeReport = "Routing HFP…", conversationSpikeTranscript = null) }
+    viewModelScope.launch {
+      val result = ConversationSpike(getApplication(), museKeys::key).run(gateway, requestPermission, muse) {
+        _ui.update { it.copy(conversationSpikeReport = "Recording now. Say ‘Who is this?’ then talk with the other person. Photo check at 10 seconds.") }
+      }
+      _ui.update { it.copy(conversationSpikeRunning = false, conversationSpikeReport = result.report, conversationSpikeTranscript = result.transcript) }
+      kotlinx.coroutines.delay(90_000)
+      _ui.update { it.copy(conversationSpikeTranscript = null) }
+    }
+  }
 
   fun whoIsThis(requestPermission: suspend (Permission) -> PermissionStatus) {
     if (_ui.value.identifying || _ui.value.capturing) return

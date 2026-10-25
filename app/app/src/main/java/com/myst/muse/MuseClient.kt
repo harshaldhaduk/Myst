@@ -125,10 +125,9 @@ class MuseClient(private val apiKey: () -> String?) {
                 val finish = choice.optString("finish_reason")
                 when {
                   content.isBlank() -> Result.Failed("empty answer (finish=$finish)", ms())
-                  // Not JSON: usually a refusal or a cut-off answer. The first 80 characters
-                  // say which; that text is model output, never an image or the key.
+                  // Model text can echo a personal conversation. Log only the outcome category.
                   !content.startsWith("{") ->
-                      Result.Failed("not JSON (finish=$finish): ${content.take(80)}", ms())
+                      Result.Failed("not JSON (finish=$finish)", ms())
                   else -> Result.Ok(JSONObject(content), ms())
                 }
               }

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myst.core.Capability
+import com.myst.BuildConfig
 import com.myst.core.Label
 import com.myst.features.VoiceCommands
 import com.myst.features.meds.DoseReminders
@@ -60,6 +61,7 @@ fun HomeScreen(
     mystOn: Boolean,
     onMystOn: (Boolean) -> Unit,
     onWhoIsThis: () -> Unit,
+    onConversationSpike: () -> Unit,
     onRegister: () -> Unit,
     onUnregister: () -> Unit,
     onOpenGlassesUpdate: () -> Unit,
@@ -158,6 +160,12 @@ fun HomeScreen(
           onWhoIsThis,
           enabled = connected && !busy,
       )
+    }
+    if (BuildConfig.DEBUG) {
+      Text("Experimental conversation spike: with everyone’s consent, Myst records 30 seconds in RAM and sends it to Meta for transcription.", style = MaterialTheme.typography.bodySmall)
+      QuietButton("Run 30-second HFP spike", onConversationSpike, enabled = mystOn && !ui.conversationSpikeRunning)
+      ui.conversationSpikeReport?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+      ui.conversationSpikeTranscript?.let { Text("Transcript (temporary): $it", style = MaterialTheme.typography.bodySmall) }
     }
   }
 }

@@ -3,6 +3,7 @@ package com.myst
 import android.Manifest.permission.BLUETOOTH
 import android.Manifest.permission.BLUETOOTH_CONNECT
 import android.Manifest.permission.POST_NOTIFICATIONS
+import android.Manifest.permission.RECORD_AUDIO
 import android.os.Bundle
 import android.graphics.Color
 import androidx.activity.ComponentActivity
@@ -34,6 +35,10 @@ class MainActivity : ComponentActivity() {
       }
 
   private val notificationPermission = registerForActivityResult(RequestPermission()) {}
+  private val spikePermission = registerForActivityResult(RequestPermission()) { allowed ->
+    if (allowed) viewModel.runConversationSpike(::requestWearablesPermission)
+    else viewModel.conversationSpikeDenied()
+  }
 
   // Glasses permissions are granted in the Meta AI app; this bridges its result back to a suspend call.
   private var permissionContinuation: CancellableContinuation<PermissionStatus>? = null
@@ -67,6 +72,7 @@ class MainActivity : ComponentActivity() {
           onUnregister = { viewModel.gateway.startUnregistration(this) },
           onCapture = { viewModel.capture(::requestWearablesPermission) },
           onWhoIsThis = { viewModel.whoIsThis(::requestWearablesPermission) },
+          onConversationSpike = { spikePermission.launch(RECORD_AUDIO) },
           onMystOn = { on -> viewModel.setMystOn(on, ::requestWearablesPermission) },
           onOpenGlassesUpdate = { viewModel.openGlassesUpdate(this) },
       )

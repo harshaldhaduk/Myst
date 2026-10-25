@@ -89,3 +89,18 @@ When the team answers one, delete it here and log the answer below as a decision
 **Decision:** Allow automatic face identification (`MuseIdentity`: glasses photo plus enrolled reference photos to Muse Spark, Standard mode) for private developer testing among consenting teammates only, without Meta's AUP accessibility exception. Off by default; enabled per machine with `myst.allowFaceId=true` in `app/local.properties`, and labeled "UNAPPROVED, dev only" on screen.
 **Why:** RJ wants automatic recognition for the hackathon build and judged private, consented use among the team acceptable. Meta's approval was not obtained: the Wearables AUP has no developer-testing exception, so this is a policy risk the team accepts (possible loss of DAT access, weaker Meta-track standing). Q12 (Model API retention and training on photos of people) is also unanswered; the team accepts that risk too.
 **Affects:** D7 (relaxed for dev testing only; the demo must not present this as Meta-approved), Q2, Q12, AGENTS.md identity and Muse rules; Lane 2; `app/` identity code. Constraints: enroll only teammates who consented; trigger only when only consenting teammates are in frame (any face in the photo is sent to Meta); never store or log photos; speak a name only above the confidence threshold.
+
+### D13 · Proposed · 19:05 · Claude Code, for RJ (Lane 3)
+**Decision:** Add `junit:junit:4.13.2` as a `testImplementation` dependency for JVM unit tests (medication state machine, ResponseGuard). Test-only; it never ships in the app.
+**Why:** The task requires unit tests and Meta's DAT sample has no JVM test dependency, so under the no-new-dependency rule a human must accept it.
+**Affects:** `app/app/build.gradle.kts`, `app/gradle/libs.versions.toml`; Lane 3 tests.
+
+### D14 · Proposed · 19:05 · RJ, direct instruction recorded by Claude Code (answers Q4)
+**Decision:** A bottle is confirmed only when two different kinds of evidence agree: (a) a Muse Spark comparison of the glasses photo against the caregiver's bottle reference photos picks exactly one medication at confidence >= 0.9, and (b) a separate Muse read of the label text names that same expected medication. A wrong bottle is named only when both point to the same other enrolled medication. Anything else: "please turn the bottle"; two failed tries alert the caregiver.
+**Why:** RJ asked for medicine recognition that works like face matching; pairing it with an independent label read keeps a false "yes" (a stop condition) unlikely without on-device OCR (D5).
+**Affects:** PRD R7, R8; Q4 (answered by this once accepted); Lane 3 bottle check.
+
+### D15 · Proposed · 19:05 · RJ, direct instruction recorded by Claude Code (answers Q9)
+**Decision:** Readiness is checked with the camera plus voice: the caregiver photographs rooms (no people in view); for "take with food" Myst guides the wearer to the food place ("let's go to the kitchen"), and when she says she is there, one glasses photo is compared with that room's references and checked for food or water in view. Any unsure result falls back to her saying "ready". Photos only on her spoken cue, never continuous.
+**Why:** RJ asked for food precautions tied to going to the kitchen, detected from room photos; voice fallback keeps the routine from stalling.
+**Affects:** PRD R9; Q9 (answered by this once accepted); Q12 (room photos must not show people); Lane 3.

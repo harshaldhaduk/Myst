@@ -7,7 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
+import com.myst.core.records.HouseholdStore
+import com.myst.core.records.Medication
 import com.myst.core.records.PeopleStore
+import com.myst.core.records.Place
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
 import com.myst.BuildConfig
@@ -46,12 +49,15 @@ data class EnrollUiState(
     val lastWhisper: WhisperResult? = null,
     /** The glasses refused with DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED; offer the update screen. */
     val needsGlassesUpdate: Boolean = false,
+    val places: List<Place> = emptyList(),
+    val medications: List<Medication> = emptyList(),
 )
 
 class EnrollViewModel(application: Application) : AndroidViewModel(application) {
   val gateway = DatGlassesGateway(viewModelScope)
   private val mockKit = MockGlassesKit(application)
   private val store = PeopleStore(application)
+  private val household = HouseholdStore(application)
 
   private val _ui = MutableStateFlow(EnrollUiState())
   val ui: StateFlow<EnrollUiState> = _ui.asStateFlow()
@@ -85,6 +91,68 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   init {
     refreshPeople()
+    refreshHousehold()
+  }
+
+  // MARK: - Places and medications (Lane 3 setup)
+
+  /** The pending glasses photo, if any, becomes a reference photo for [savePlace]/[saveMedication]. */
+  private fun takePendingPhoto(attach: Boolean): List<ByteArray> =
+      _ui.value.pending?.takeIf { attach }?.photo?.jpeg?.let { listOf(it) } ?: emptyList()
+
+  fun savePlace(id: String?, name: String, note: String, attachPhoto: Boolean) {
+    if (name.isBlank()) return
+    val photos = takePendingPhoto(attachPhoto)
+    viewModelScope.launch {
+      val place = withContext(Dispatchers.IO) { household.savePlace(id, name, note, photos) }
+      _ui.update {
+        it.copy(
+            pending = if (photos.isNotEmpty()) null else it.pending,
+            message = "Saved ${place.name} (${place.photoFiles.size} photo${if (place.photoFiles.size == 1) "" else "s"}).",
+        )
+      }
+      refreshHousehold()
+    }
+  }
+
+  fun deletePlace(place: Place) {
+    viewModelScope.launch {
+      withContext(Dispatchers.IO) { household.deletePlace(place.id) }
+      _ui.update { it.copy(message = "Removed ${place.name} and its photos.") }
+      refreshHousehold()
+    }
+  }
+
+  fun saveMedication(draft: Medication, attachPhoto: Boolean) {
+    if (draft.labelName.isBlank() || draft.pillsPerDose < 1) return
+    val photos = takePendingPhoto(attachPhoto)
+    viewModelScope.launch {
+      val med = withContext(Dispatchers.IO) { household.saveMedication(draft, photos) }
+      _ui.update {
+        it.copy(
+            pending = if (photos.isNotEmpty()) null else it.pending,
+            message = "Saved ${med.labelName} (${med.bottlePhotoFiles.size} bottle photo${if (med.bottlePhotoFiles.size == 1) "" else "s"}).",
+        )
+      }
+      refreshHousehold()
+    }
+  }
+
+  fun deleteMedication(med: Medication) {
+    viewModelScope.launch {
+      withContext(Dispatchers.IO) { household.deleteMedication(med.id) }
+      _ui.update { it.copy(message = "Removed ${med.labelName} and its photos.") }
+      refreshHousehold()
+    }
+  }
+
+  fun householdPhoto(file: String): ByteArray? = household.photo(file)?.readBytes()
+
+  private fun refreshHousehold() {
+    viewModelScope.launch {
+      val (places, meds) = withContext(Dispatchers.IO) { household.places() to household.medications() }
+      _ui.update { it.copy(places = places, medications = meds) }
+    }
   }
 
   fun pickMockPerson(id: String?) = _ui.update { it.copy(mockPickId = id) }

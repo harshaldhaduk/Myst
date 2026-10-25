@@ -26,6 +26,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,6 +66,7 @@ fun EnrollScreen(
   val glasses by viewModel.gateway.state.collectAsStateWithLifecycle()
   val camera by viewModel.gateway.capability.collectAsStateWithLifecycle()
   var mockOn by rememberSaveable { mutableStateOf(false) }
+  var tab by rememberSaveable { mutableStateOf(0) }
 
   MaterialTheme {
     Column(
@@ -79,8 +82,14 @@ fun EnrollScreen(
       if (ui.needsGlassesUpdate) {
         Button(onClick = onOpenGlassesUpdate) { Text("Open glasses update (Meta AI app)") }
       }
+      TabRow(selectedTabIndex = tab) {
+        listOf("Family", "Medications", "Places").forEachIndexed { i, title ->
+          Tab(selected = tab == i, onClick = { tab = i }, text = { Text(title) })
+        }
+      }
+      if (tab != 0) Text("Glasses: ${glasses.describe()}", style = MaterialTheme.typography.bodySmall)
 
-      Section("1. Connect the glasses") {
+      if (tab == 0) Section("1. Connect the glasses") {
         Text("Status: ${glasses.describe()}")
         Row(verticalAlignment = Alignment.CenterVertically) {
           Switch(
@@ -104,7 +113,13 @@ fun EnrollScreen(
         }
       }
 
-      Section("2. Take a photo with the glasses") {
+      Section(
+          when (tab) {
+            1 -> "Bottle photo (glasses)"
+            2 -> "Room photo (glasses, no people in view)"
+            else -> "2. Take a photo with the glasses"
+          },
+      ) {
         CapabilityRow(camera)
         Button(
             onClick = onCapture,
@@ -128,7 +143,14 @@ fun EnrollScreen(
         }
       }
 
-      Section("3. Name the person and save") {
+      if (tab == 1) {
+        MedicationsTab(viewModel, ui)
+      }
+      if (tab == 2) {
+        PlacesTab(viewModel, ui)
+      }
+
+      if (tab == 0) Section("3. Name the person and save") {
         EnrollForm(
             hasPhoto = ui.pending != null,
             onSave = { name, relationship, recordedBy ->
@@ -142,14 +164,14 @@ fun EnrollScreen(
         )
       }
 
-      Section("Enrolled family (${ui.people.size})") {
+      if (tab == 0) Section("Enrolled family (${ui.people.size})") {
         if (ui.people.isEmpty()) Text("Nobody yet.")
         ui.people.forEach { person ->
           PersonRow(person, viewModel.photoBytes(person)) { viewModel.revoke(person) }
         }
       }
 
-      Section("4. Who is this?") {
+      if (tab == 0) Section("4. Who is this?") {
         viewModel.museIdentity?.let { muse ->
           Row(verticalAlignment = Alignment.CenterVertically) {
             Switch(checked = autoIdentify, onCheckedChange = viewModel::setAutoIdentify)
@@ -287,7 +309,7 @@ private fun PersonRow(person: Person, photo: ByteArray?, onRevoke: () -> Unit) {
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
   Card(Modifier.fillMaxWidth()) {
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
       Text(title, style = MaterialTheme.typography.titleMedium)
@@ -297,7 +319,7 @@ private fun Section(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun CapabilityRow(c: Capability) {
+internal fun CapabilityRow(c: Capability) {
   Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
     LabelChip(c.label)
     Column {
@@ -326,7 +348,7 @@ fun LabelChip(label: Label) {
 }
 
 @Composable
-private fun JpegImage(bytes: ByteArray, modifier: Modifier) {
+internal fun JpegImage(bytes: ByteArray, modifier: Modifier) {
   val bitmap = remember(bytes) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) } ?: return
   Image(bitmap.asImageBitmap(), contentDescription = null, modifier = modifier, contentScale = ContentScale.Fit)
 }

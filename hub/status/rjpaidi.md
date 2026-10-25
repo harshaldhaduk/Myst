@@ -1,6 +1,6 @@
-# rjpaidi · Lane 4 (caregiver setup) + glasses capture path
+# rjpaidi · Lanes 2-4: identity, medication routine, caregiver setup (+ glasses capture path)
 
-Updated 18:49 by Claude Code
+Updated 19:06 by Claude Code
 
 Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 1. Coordinate before merging; if kchperla's spike lands first, swap its code in behind `GlassesGateway`.
 
@@ -14,6 +14,7 @@ Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 
 - Spoken trigger (EXPERIMENTAL, user's choice): a Listening switch keeps one DAT session open with `mwdat-speech` (Meta DAT module, same 1.0.1 version; inside D5). A final transcript matching "who is this / who's this / who is that" runs Familiar Faces; the camera is added to that same session for one photo, then removed. Transcripts are matched only, never stored, logged or shown. Mic permission is requested from the switch tap (Meta AI app).
 - Real glasses (18:16): Listening started on the glasses (`speech start response: RESPONSE_STATUS_OK`) and the screen showed `Spoke: "krishna, your son."` with MockIdentity. Earlier attempts 18:15:49-18:16:06 failed with `START_ERROR_DEVICE_UNAVAILABLE`. Whether the voice phrase or the button triggered it, the capture light and audio on the glasses are not yet confirmed by the user.
 - `MuseClient` (HttpURLConnection, Chat Completions, json_schema, reasoning_effort minimal, 15 s timeout, logs task/latency/outcome only) and a real `MuseIdentity` (live photo + enrolled glasses reference photos, `{match_id, confidence}`, threshold 0.85, else "not sure"). Compiled only behind D12: `myst.allowFaceId=true` in `app/local.properties` plus a key in `.env`. Not run: no key on this Mac and D12 not yet accepted.
+- Lane 3 slice 1: `Place`, `Medication`, `Event` in the shared schema; `HouseholdStore` (app-private, no backup, photos deleted with records); Family / Medications / Places tabs; glasses photos attach as bottle and room references; "take with food" links to a food place (Kitchen by default). Verified on emulator + Mock Device Kit (Kitchen with 1 photo; Metformin with food -> Kitchen, 1 bottle photo).
 - Live/Mock/Experimental labels in code (`core/Capability.kt`) and on screen.
 
 **Verified**
@@ -37,10 +38,13 @@ Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 
 - DAT app id and client token default to blank, matching kchperla's real-glasses registration (META_SUITE 3.2 says "0").
 - The Mock Device Kit refuses to stream without `setCameraFeed(...)` ("No camera source configured"), even for a single photo. The feed is Meta's `plant.mp4` sample clip in `app/app/src/debug/assets` (debug builds only).
 
+**In flight**
+- Lane 3 Medication Routine (claimed 18:55): slice 1 records (Place, Medication, Event) and caregiver setup tabs; then routine state machine + tests, glasses wiring, bottle check (reference match + label read), room/food/water checks.
+
 **Blocked, or need from someone**
 - Real-glasses run: needs the S23 Ultra and glasses (kchperla) or another Android phone. This Mac has no Android phone attached.
 - Face identification: D12 (Proposed by RJ) would allow it for private dev testing without Meta's AUP exception. Needs a human to mark D12 Accepted. Meta approval (D7, Q2) and Q12 remain unanswered.
 - Lane 2 should confirm that storing a consented reference photo on the phone fits "no frames retained" (it is enrollment data, not a live frame).
 
 **Files I am working in right now**
-- `app/` (all), `.gitignore` (Android build lines), `hub/status/rjpaidi.md`
+- `app/` (all), `.gitignore` (Android build lines), `hub/status/rjpaidi.md`, `hub/DECISIONS.md` (D12-D15 Proposed entries)

@@ -1,12 +1,14 @@
 # Myst: shared agent rules
 
-**Hub v3.** Before working, read this file, `PROJECT_CONTEXT.md`, `hub/DECISIONS.md`, `hub/PRD.md`, `hub/BUILDING.md`, `hub/META_SUITE.md`, `hub/LOOP.md`, and `hub/status/`. Start the first reply in a session with `[hub v3]`. Follow "Keep the docs true" below on every change. These instructions govern coding agents editing the repository, not the assistant running on the glasses.
+**Hub v3.** Before working, read this file, `PROJECT_CONTEXT.md`, `hub/DECISIONS.md`, `hub/PRD.md`, `hub/BUILDING.md`, `hub/META_SUITE.md`, `hub/LOOP.md`, and `hub/status/`. Do not add hub-version prefixes to chat replies. Follow "Keep the docs true" below on every change. These instructions govern coding agents editing the repository, not the assistant running on the glasses.
 
 Myst, Meta track hackathon (HackTX 2026): an Android app paired to Ray-Ban Meta glasses for people with early to mid-stage dementia living at home. Two features: Familiar Faces (recognize consenting loved ones and recall trusted shared context) and Medication Routine (guide a dose, alert the caregiver). Judging is assumed to weight a cohesive story and a truthful working demo heavily; that is a team assumption, not a published rubric.
 
 ## Tech stack: Meta only
 
-**The entire stack is Meta: Ray-Ban Meta glasses, the Wearables Device Access Toolkit (DAT), the Muse Spark API and the WhatsApp Cloud API, with Android as the DAT host OS. Nothing else** (D3, D5). No third-party face-recognition service, vision model, LLM provider, cloud backend, database service or SDK. Everything the product does must be built from what Meta's developer tools actually expose. Not allowed: on-device OCR, face-blur or face-match libraries, FCM, outside SDKs (call Muse Spark over plain HTTPS).
+**The entire stack is Meta: Ray-Ban Meta glasses, the Wearables Device Access Toolkit (DAT), and the Muse Spark API, with Android as the DAT host OS. Nothing else** (D3, D5 as narrowed by the user's instruction recorded in D27). No third-party face-recognition service, vision model, LLM provider, cloud backend, database service or SDK. Everything the product does must be built from what Meta's developer tools actually expose. Not allowed: on-device OCR, face-blur or face-match libraries, FCM, outside SDKs (call Muse Spark over plain HTTPS).
+
+- WhatsApp is excluded by the user's explicit instruction (D27). Caregiver alerts stay on this phone; remote/background delivery to another device has no selected transport. Do not add another messaging provider or claim an alert was delivered remotely without an authorized, implemented and verified path.
 
 - Before any technical work, read `hub/META_SUITE.md` (what Meta provides: glasses, DAT, Model API, WhatsApp, policy, with evidence labels) and `hub/LOOP.md` (the glasses-phone-Muse loop and its spike). Then re-check the live Meta docs for anything you are about to build on, and record what is available in the PRD's capability table. Search current DAT docs through Meta's Wearables MCP (`https://mcp.developer.meta.com/wearables`, tool `search_dat_docs`).
 - If a capability is not available through Meta/Muse (for example, face matching or camera-frame access), it is **blocked**, not a gap to fill with an outside tool. Surface it to the human, then either redesign around what Meta offers, label it a scripted mock, or move it to roadmap.
@@ -77,7 +79,7 @@ Only what a status file records from the real device. Device: Samsung Galaxy S23
 - After rollback, Mayank reported Start Myst then showed an update warning despite Meta AI saying the glasses are current. Code inspection found `SESSION_ENDED_BY_DEVICE` was rendered as "software needs an update" and any error containing "update" enabled the update action. The correction now reserves update guidance for DAT's typed update-required result and hides battery 0 as unavailable. On the corrected APK, Mayank reports no battery percentage is shown and Start Myst returns the generic "unexpected error"; the false update warning is gone, but the DAT session failure remains. Source: `hub/status/mayank.md`.
 - Mayank then reported recovering glasses/app communication through a hardware-side fix. The exact action and which flows were rechecked were not supplied. Source: `hub/status/mayank.md`.
 
-Not verified on the device: glasses-tap trigger, dose reminders (emulator only; the D24 build was installed on the S23 Ultra but no reminder has fired there), battery, end-to-end latency.
+Not verified on the device: physical double-tap recognition trigger (single tap is DAT pause/resume), dose reminders (emulator only; the D24 build was installed on the S23 Ultra but no reminder has fired there), battery, end-to-end latency.
 
 ## Keep the docs true
 

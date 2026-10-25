@@ -222,7 +222,7 @@ The follow-up “What did we talk about last time?” and the D25 nudge are unbu
 | H1 | FAIL | No script or video yet. | Lane 5: write the 25-30 s opening. |
 | H2 | FAIL | No demo clip of Margaret turning to Daniel. | Lane 5: film after E2 runs. |
 | H3 | PENDING | Built: `Person.memories` -> `FamiliarFaces.whisperFor` -> `ResponseGuard`. No recorded record-to-output trace. | Lane 2: log one run with record id and spoken line. |
-| H4 | PENDING | Built: DAT Speech phrase, glasses tap (untested on glasses), quiet Home backup control. On 2026-10-25 the backup produced an audible unsure line through the glasses (user report, `hub/status/mayank.md`); spoken trigger remained intermittent. | Lane 2: record an uninterrupted wearer-initiated glasses-triggered run. |
+| H4 | PENDING | Built: DAT Speech phrase, experimental double-tap via Bluetooth media events (next/previous now handled; physical flow not yet verified; single tap is DAT pause/resume), quiet Home backup control. On 2026-10-25 the backup produced an audible unsure line through the glasses (user report, `hub/status/mayank.md`); spoken trigger remained intermittent. | Lane 2: record an uninterrupted wearer-initiated glasses-triggered run. |
 | H5 | PENDING | Built: Setup > Family (consent, memories add/delete/reorder, revoke deletes record, photo, visits). Revoke not re-checked on a phone with the D19 build. | Lane 4: revoke-then-ask test on the phone. |
 | H6 | FAIL | No judge-facing statement or clip. | Lane 5. |
 | A1 | PENDING | Built: `MuseIdentity` (D12). Status file: 5 of 5 match verdicts, 2 with two enrolled; log holds Muse's verdict, not ground truth. | Lane 2: logged run with a second enrolled person. |

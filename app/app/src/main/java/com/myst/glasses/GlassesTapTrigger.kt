@@ -15,10 +15,11 @@ import com.myst.core.Capability
 import com.myst.core.Label
 
 /**
- * A silent trigger: a tap on the glasses touchpad. The glasses are a Bluetooth headset, and a tap
- * arrives on the phone as a play/pause media button. Myst claims media buttons with an Android
- * MediaSession (host OS, not a Meta API) and turns each tap into one request. This takes over
- * play/pause from music apps while it is on; the team does not use music on the glasses.
+ * Experimental trigger through Bluetooth media buttons (Android, not a Meta API). Our phone has
+ * received MEDIA_NEXT from the glasses, so handle track controls as well as play/pause. A single
+ * touchpad tap during a DAT session is reserved for pause/resume and never reaches the app;
+ * double-tap is the candidate gesture to verify on the actual glasses. This takes media controls
+ * from music apps while enabled.
  */
 class GlassesTapTrigger(private val context: Context, private val onTap: () -> Unit) {
   companion object {
@@ -27,10 +28,10 @@ class GlassesTapTrigger(private val context: Context, private val onTap: () -> U
 
     val capability =
         Capability(
-            "Tap the glasses",
+            "Double-tap the glasses",
             Label.EXPERIMENTAL,
-            "Touchpad tap arrives as a Bluetooth play/pause button (Android, not a Meta API)",
-            blockedBy = "Untested on the real glasses",
+            "Bluetooth media-button trigger; single tap is reserved by DAT for pause/resume",
+            blockedBy = "Double-tap recognition flow still needs verification on the real glasses",
         )
 
     private val TAP_KEYS =
@@ -38,6 +39,8 @@ class GlassesTapTrigger(private val context: Context, private val onTap: () -> U
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
             KeyEvent.KEYCODE_MEDIA_PLAY,
             KeyEvent.KEYCODE_MEDIA_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_NEXT,
+            KeyEvent.KEYCODE_MEDIA_PREVIOUS,
             KeyEvent.KEYCODE_HEADSETHOOK,
         )
   }
@@ -62,7 +65,8 @@ class GlassesTapTrigger(private val context: Context, private val onTap: () -> U
                       } else {
                         @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
                       }
-                  if (event?.action == KeyEvent.ACTION_DOWN && event.keyCode in TAP_KEYS) tap("key ${event.keyCode}")
+                  if (event == null || event.keyCode !in TAP_KEYS) return super.onMediaButtonEvent(intent)
+                  if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) tap("key ${event.keyCode}")
                   return true
                 }
 
@@ -70,11 +74,19 @@ class GlassesTapTrigger(private val context: Context, private val onTap: () -> U
                 override fun onPlay() = tap("onPlay")
 
                 override fun onPause() = tap("onPause")
+
+                override fun onSkipToNext() = tap("onSkipToNext")
+
+                override fun onSkipToPrevious() = tap("onSkipToPrevious")
               },
           )
           setPlaybackState(
               PlaybackState.Builder()
-                  .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE)
+                  .setActions(
+                      PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or
+                          PlaybackState.ACTION_PLAY_PAUSE or PlaybackState.ACTION_SKIP_TO_NEXT or
+                          PlaybackState.ACTION_SKIP_TO_PREVIOUS,
+                  )
                   .setState(PlaybackState.STATE_PLAYING, 0, 1f)
                   .build(),
           )

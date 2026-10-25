@@ -256,7 +256,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
       tapTrigger = GlassesTapTrigger(getApplication()) { whoIsThis(requestPermission) }.also { it.start() }
     }
     _tapOn.value = on
-    _ui.update { it.copy(message = if (on) "Tap the glasses to ask \"Who is this?\"" else "Glasses tap off.") }
+    _ui.update { it.copy(message = if (on) "Double-tap the glasses to ask \"Who is this?\" (experimental)." else "Glasses tap off.") }
   }
 
   // MARK: - The one switch

@@ -99,6 +99,8 @@ A device that meets the minimums can still return `DeviceSessionError.CAPABILITY
 
 ### 3.7 Speech, inputs, motion, voice invocation (all experimental)
 
+- **Touchpad correction (2026-10-25, current Meta Wearables MCP):** during a DAT session without interactive display content, a one-finger single tap pauses/resumes the session and a tap-and-hold stops it; neither reaches the app. Do not use either as a custom trigger. Double-tap is the documented select gesture, with model-dependent mappings. Our Android media-session event history contains Bluetooth `MEDIA_NEXT`; Myst handles next/previous plus play/pause for the experimental Bluetooth fallback. A real double-tap-to-recognition run is still required. [Docs: https://wearables.developer.meta.com/docs/develop/dat/inputs; phone event history inspected, not an end-to-end verification]
+
 - **Speech:** `session.addSpeech`, flows for `state`, `locale`, `errors`, `transcriptions` (partial and final). Needs the DAT mic permission, granted from a user action. The README calls it on-device recognition. Where it actually runs and its accuracy are [Unknown]. A Speech session starts on our glasses (`RESPONSE_STATUS_OK`) and ends after about 60 s; that a spoken phrase fired Myst's action is not recorded. [Verified on device, partial]
 - **Inputs:** navigation, button, capture and drag events from the glasses. Needs capability approval in the Developer Center. The earlier "no documented glasses button event" finding in LOOP.md is superseded: the capability exists but is gated. [Docs]
 - **Motion:** accelerometer, gyroscope, magnetometer, orientation; sensor fields are nullable.

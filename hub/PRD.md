@@ -7,11 +7,11 @@ Source: HackTX 2026 PRD by RJ (2026-10-24), pasted by Mayank; adoption is Propos
 Myst is an Android app paired to Ray-Ban Meta glasses. The wearer (Margaret, early to mid-stage dementia, at home) hears one calm voice and never configures anything; the live-in caregiver (Robert, her husband) does all setup; remote family (Daniel, her son) wants to be recognized and know she is okay. Two features:
 
 - **Familiar Faces:** on request, whisper the name, relationship and one caregiver-written memory of a family member who opted in.
-- **Medication Routine (reminders only, D24):** at dose time, whisper the medicine, where it is kept, and the caregiver's water and food rules; re-remind, and alert the family about a missed dose. Myst never identifies a medicine.
+- **Medication Routine (reminders only, D24):** at dose time, whisper the medicine, where it is kept, and the caregiver's water and food rules; re-remind, and alert the caregiver on this phone about a missed dose. Remote delivery has no selected transport (D27). Myst never identifies a medicine.
 
 It is a presence problem, not a data problem: the family already knows the schedule, medicines and people; Myst moves it to her ear at the right moment. It does not treat dementia, replace caregivers, give dosing advice or monitor medically.
 
-**Stack: Meta only** (D3, D5): Ray-Ban Meta glasses, Wearables Device Access Toolkit (DAT), Muse Spark model API, WhatsApp Cloud API. Android is the host OS the DAT requires. Nothing else.
+**Stack: Meta only** (D3, D5 as narrowed by the user's instruction recorded in D27): Ray-Ban Meta glasses, Wearables Device Access Toolkit (DAT), Muse Spark model API. Android is the host OS the DAT requires. Nothing else. No messaging integration is selected.
 
 | Already built | Boundary |
 |---|---|
@@ -35,13 +35,13 @@ Filled from Meta's official docs on 2026-10-24 (detail in `hub/META_SUITE.md`, D
 | Speech out (text to speech) | No Meta TTS (docs read). Built: Android TextToSpeech (`AndroidTtsSpeaker`), labeled OS speech (D17, Proposed). On 2026-10-25 the wearer heard Myst's unsure line through the glasses from the Home backup control (user report; not timed). | OS TTS (D17) |
 | Speech in ("Who is this?", "Done") | Built: DAT Speech (experimental) matches "Who is this?" only ("What is this?" removed, D24); transcripts never stored. On device: Speech starts (`RESPONSE_STATUS_OK`), sessions end after about 60 s and restart. That the phrase fired a whisper is not confirmed. "Done" not built. | Experimental |
 | Conversation speech in (D25 spike) | Meta docs: `muse-voice-transcribe-1.0` accepts multipart mono 16-bit WAV at `/v1/asr/transcribe` with speaker diarization. Debug-only 30-second HFP spike built. On device, Mayank reported HFP routed, one DAT photo OK, and transcription of his speech. Other-speaker pickup and DAT Speech coexistence remain unproved; Spark summary failed BAD_ANSWER. | Experimental spike only; visit nudge paused |
-| Voice or button trigger | Built: DAT Speech phrase (D17) and a glasses tap via an Android `MediaSession` (experimental, not tested on the glasses), both under "Start Myst". The two Home buttons are gone (D24); a quiet "Backup: Who is this?" text button at the bottom of Home runs the same path. On 2026-10-25 the backup finished with an audible unsure line, while spoken trigger attempts were intermittent. Voice Invocations and Inputs not used. | Experimental; quiet backup text button |
+| Voice or button trigger | Built: DAT Speech phrase (D17) and an experimental double-tap via Android `MediaSession` (play/pause and next/previous track events; physical gesture-to-recognition still unverified), both under "Start Myst". A single touchpad tap is reserved by DAT for session pause/resume and is not an app trigger (D29). The two Home buttons are gone (D24); a quiet "Backup: Who is this?" text button at the bottom of Home runs the same path. On 2026-10-25 the backup finished with an audible unsure line, while spoken trigger attempts were intermittent. Voice Invocations and Inputs not used. | Experimental; quiet backup text button |
 | Person identification | Policy-restricted (AUP, `hub/META_SUITE.md` section 6). Built: `MuseIdentity` (Muse Spark, Standard mode, threshold 0.85) only when `myst.allowFaceId=true` (D12, Accepted by RJ, unapproved by Meta; D16 verbal). Without it, Myst says "Face recognition isn't set up on this phone." (D21; MockIdentity removed). Matches are hedged: "I think that's Daniel, your son." On device: 5 of 5 match verdicts, no negative trials. | Experimental, dev builds only (D12) |
 | Family memory storage | Built: caregiver-entered memories per person (add, delete, reorder, guard-checked, max 5), rotated in the whisper; visit memory (D18). App-private, no backup. Store writes not checked on a phone. | Live (app logic) |
 | Label reading / bottle check | Removed (D24, efc2270; archived at the tag). Medication sends no frame to Muse. | Not in the demo |
 | Muse Spark API access | On device: `muse-spark-1.3` over plain HTTPS works; set `reasoning_effort` (default returned empty content 2 of 3). Key is provisioned by `scripts/provision-muse-key.sh` into Keystore-encrypted app storage, not compiled into the APK (D22; task handoff reports S23 Ultra provisioning, not independently inspected this session). | Live |
 | Dose-time scheduling | Built: AlarmManager reminders, re-remind +10/+20 min, reschedule at boot. Falls back to an inexact alarm without exact-alarm access; no access warning in the UI. Emulator only. | Live (OS feature); frozen (D20) |
-| Caregiver alerts | Built: missed-dose notification on this phone only. WhatsApp not built (Q13). | Mock (WhatsApp); frozen (D20) |
+| Caregiver alerts | Built: missed-dose notification on this phone only. Remote delivery has no selected transport (D27, Q15). | Local notification only; frozen (D20) |
 | Face blur before Muse Spark | No Meta tool known. Only face ID sends frames (on request, dev builds, D12); medication sends none (D24). | No blur; frames only on request for face ID |
 | Object recognition, saved locations | Roadmap (D8). SAM 3.1 and Muse Spark grounding exist. | Roadmap |
 
@@ -63,7 +63,7 @@ Medication Routine (reminders only, D24; no camera, no Muse)
   -> log DOSE_REMINDED
   -> not reported taken: re-remind +10, +20 min (DOSE_REREMINDED)
   -> "Reported taken" (phone) -> log; a second report logs DOSE_BLOCKED_DOUBLE
-  -> window closes unreported -> DOSE_MISSED, alert Robert (phone notification; WhatsApp mock, Q13)
+  -> window closes unreported -> DOSE_MISSED, alert Robert (notification on this phone; no remote delivery, D27)
 ```
 
 Identity matching and memory retrieval stay separate steps. The wearer is never quizzed or corrected ("Do you remember me?", "wrong", "you forgot" are banned).
@@ -86,14 +86,14 @@ Priority as written in the source PRD: P0 must work in the live demo, P1 if time
 | R10 | Pill count only from caregiver setup. Never infer, change or advise on a dose. | P0 | Count stored from setup and shown on the Reminders page; not spoken in the reminder; never inferred. | |
 | R11 | Already-logged dose blocks a second: "You already took your morning pills at 8:04." | P0 | Partly: phone "Reported taken" refuses a second log; spoken line not built. Frozen (D20). | |
 | R12 | A dose is confirmed and logged with its time. | P0 | Partly: "Mark reported taken" on the Reminders page logs "reported taken"; voice "Done" not built. Frozen (D20). | Source sentence is cut off; its bottle-check result is gone (D24). Log says "reported taken", never "taken" (D6). |
-| R13 | Re-remind at +10 and +20 min; when the window closes, push alert to caregiver. | P0 | Built: +10/+20 re-reminds (logged DOSE_REMINDED / DOSE_REREMINDED, kept 30 days), missed-dose notification on this phone. WhatsApp mock (Q13). Emulator only. | Alert channel under D5 is WhatsApp, not FCM. |
+| R13 | Re-remind at +10 and +20 min; when the window closes, alert the caregiver on this phone. | P0 | Built: +10/+20 re-reminds (logged DOSE_REMINDED / DOSE_REREMINDED, kept 30 days), missed-dose notification on this phone. Emulator only. | Remote/background delivery to another device has no selected transport (D27); a local record is not a delivered remote message. |
 | R14 | Caregiver enrolls family (consent recorded) and sets up each medication: label name, plain description, pill count, schedule and window, water/food rule, storage location (free text). | P0 | Built: Setup tab = Family (consent, memories, revoke) + Reminders (add, edit with spoken preview, delete, today's timeline). No bottle photos, no Places (D24). Store writes for this build not checked on a phone. | Enrollment must be editable and revocable (`AGENTS.md`). |
 | R15 | Demo control fires a dose time immediately. | P0 (demo) | No button (D19, D24). Operators set a dose a couple of minutes ahead on the Reminders page. | Must be labeled as a demo control if one returns. |
 | R16 | Alert caregiver on blocked double dose (wrong-bottle alert removed, D24), or glasses disconnected 15+ min. | P2 | Not built. | The UX section and R13 already promise some of these alerts. |
 | R17 | Visits and doses on a shared timeline; daily summary to remote family. | P2 | Not built (visits shown as "Last recognized" per person only). | |
 | R18 | (absent in source) | | | Numbering gap, ask RJ. |
 | R19 | Optional passive mode whispers when a known family member approaches. Off by default. | "P4" | Not built (roadmap). | Undefined priority. Conflicts with `AGENTS.md` (no passive scanning, no assumed approach detection); stays roadmap. |
-| R20 | Missed-dose alerts to remote family via WhatsApp Cloud API. | "P4" | Not built (Q13). | Fits Meta-only; may become the main alert channel. |
+| R20 | Missed-dose alert delivery to remote family, transport unselected. | "P4" | Not built; blocked pending an authorized delivery channel (D27, Q15). | No remote notification capability is claimed. |
 | R21 | Pillbox check: correct day and time compartment open and empty. | "?" | Not built (roadmap). | Unscoped; roadmap. |
 | R22 | D25 as amended by D26, both Accepted by Mayank: after a confident enrolled match, keep at most about 120 s of consented conversation PCM in RAM during a five-minute visit; on “What were we talking about?” upload an in-memory WAV and give a short, grounded nudge, then wipe audio and transcript. | P1 (target) | Not built. A debug-only 30-second HFP/ASR spike transcribed the wearer's speech once; other-speaker pickup and DAT Speech sharing remain unproved, and Spark summary failed. Stop rule applies. | No visit state, ring buffer, trigger or spoken summary exists. |
 

@@ -95,7 +95,7 @@ fun HomeScreen(
       )
       Text(
           if (mystOn) {
-            "Say \"Who is this?\" or tap the glasses."
+            "Say \"Who is this?\" or try a double-tap on the glasses."
           } else {
             "One switch for voice and glasses tap."
           },
@@ -108,7 +108,7 @@ fun HomeScreen(
         Spacer(Modifier.height(14.dp))
         Panel(tint = Myst.BlushWash, radius = 22.dp, padding = 16.dp) {
           Text(ui.voiceProblem, style = MaterialTheme.typography.bodyMedium)
-          Text("Tapping the glasses still works.", style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
+          Text("Try the backup button below. Double-tap is experimental; a single tap pauses the glasses session.", style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
           PillButton("Try voice again", { onMystOn(true) }, color = Myst.Blush)
         }
       }

@@ -25,8 +25,9 @@ When the team answers one, delete it here and log the answer below as a decision
 - **Q9. Face blur and water detection.** R5 blur and R9 water check have no known Meta tool. Drop, mock or redesign? **Answered by D15 (Proposed, awaiting a human).**
 - **Q11. Speech out.** Meta's Model API has no text-to-speech and DAT has no playback call (`hub/META_SUITE.md` 4, 3.6). Options: Android's built-in TextToSpeech as part of the host OS, pre-recorded clips labeled mock, or text on Meta Ray-Ban Display. Which one is acceptable under D5? **Answered by D17 (Proposed):** Android's built-in text-to-speech over Bluetooth, labeled as OS, not Meta.
 - **Q12. Frames and Muse.** Use Standard-mode Muse Spark only (the `-contributor` variants let Meta train on the content). Do the Model API terms allow sending frames that show people, and how long are requests retained? Not covered on the pages read. Who checks before any frame with a person is sent? **Still open.** D16 covers consent, not Meta's retention or training terms for photos of people.
-- **Q13. WhatsApp alerts.** Sending needs a server-side access token and an approved template; a token in the APK would leak. Is a small relay acceptable under D5's "no cloud backend", or do alerts become a labeled mock for the demo?
 - **Q14. Open-weight Meta models.** Is self-hosting a Meta model (for example Muse Glimmer, Apache 2.0, text and image) on the phone inside "Meta stack"? It would keep frames on the phone, but it is not the Muse Spark API named in D5.
+
+- **Q15. Remote caregiver delivery.** The user excluded the previously proposed messaging integration (D27). In-app alert records remain in scope; any remote/background delivery needs a separately authorized channel compatible with the stack. This resolves the former Q13 proposal.
 
 ## Log
 
@@ -159,3 +160,18 @@ When the team answers one, delete it here and log the answer below as a decision
 **Decision:** For the first conversation nudge, amend D25's realtime transcription plan to a five-minute visit with at most 120 seconds of 16 kHz mono PCM in RAM. On an explicit “What were we talking about?” trigger, upload an in-memory WAV to Muse Voice Transcribe's file endpoint, then request a guarded Spark summary. The optional silence trigger stays off. Do not build the visit feature until the real-glasses spike proves the other speaker is audible and the trigger remains usable alongside HFP, or a separately tested Meta-only trigger replaces DAT Speech.
 **Why:** Mayank requested the simpler batch design and a spike-first stop rule. The first spike routed HFP, captured a DAT photo and transcribed the wearer, but did not test the other speaker; DAT Speech response was intermittent and Spark summary returned BAD_ANSWER.
 **Affects:** D25 implementation detail, `hub/PRD.md` R22, `hub/LOOP.md`, conversation code and demo claims. Accepted by Mayank; the failed spike still stops the full feature.
+
+### D27 · Proposed · 15:24 · User's direct instruction, recorded by Codex (2026-10-24)
+**Decision:** Exclude WhatsApp from the stack and implementation. This supersedes the messaging-provider portion of D5 and the corresponding parked idea. Caregiver alerts remain in-app records; no remote/background delivery channel is selected or authorized as a replacement.
+**Why:** The user explicitly instructed, "no whatsapp, edit those docs". This entry records that instruction; it does not claim that a new notification capability exists.
+**Affects:** `AGENTS.md`, `PROJECT_CONTEXT.md`, `hub/PRD.md` stack/capability table/R13/R20/caregiver UI wording, and `hub/IDEAS.md`. Historical entries remain unchanged; only a human changes decision status words under the hub rules.
+
+### D28 · Proposed · 01:48 · User's direct instruction, recorded by Codex (2026-10-25)
+**Decision:** Remove hub-version prefixes from agent replies and remove the corresponding requirements from the shared rules and tool entrypoints. This supersedes the reply-tag conventions in D11 and D23 without changing the platform reference or collaboration rules.
+**Why:** The user explicitly asked to remove the tag after it was repeatedly included in replies.
+**Affects:** `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`; no application behavior changes.
+
+### D29 · Proposed · 2026-10-25 · User-reported touchpad failure, recorded by Codex
+**Decision:** Correct the experimental Bluetooth trigger to handle next/previous-track media events as well as play/pause, and describe double-tap as the gesture to verify. A single touchpad tap is not an application trigger during a DAT session; retain the quiet Home backup control.
+**Why:** The user reports a sound and no Home screen change. On the connected S23 Ultra, Myst owns the media-button session, but Android recorded Bluetooth MEDIA_NEXT events that the old handler consumed without invoking recognition. Current Meta Inputs docs say the device reserves single tap for session pause/resume; it never reaches the app.
+**Affects:** `GlassesTapTrigger`, Home instructions, `EnrollViewModel` confirmation, PRD trigger row, META_SUITE, app README and H4 ledger. No new dependency or capture mode; physical double-tap recognition remains unverified until exercised by the wearer.

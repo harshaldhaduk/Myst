@@ -27,6 +27,16 @@ Updated 02:45 by Codex
 - D25: confirm DAT Speech phrase while AudioRecord is active, hear the teammate at about 1 m, collect the ASR/Spark timings, and diagnose Spark's invalid structured answer. The debug control does not start a visit or whisper a nudge.
 - Rotate the old Muse key if any APK built before D22 was shared.
 
+**Real-glasses rehearsal log (2026-10-25; observations, not accuracy claims)**
+
+| Case | Observed | Counts toward requested run set? |
+|---|---|---|
+| Consenting but unenrolled teammate, spoken “Who is this?” | User heard “I'm not sure who that is.” No model trace or conditions recorded. | One anecdotal unknown-person check; not a controlled 3/3 set. |
+| No person in view, Home backup trigger after HFP spike | Last-said card updated and unsure line was audible through the glasses. | One backup/no-face observation; not a controlled 3/3 set. |
+| Later spoken requests during/after HFP spike | Intermittently ignored, or earcon without a last-said update. | Failure to investigate; no successful-run count. |
+
+Still to record with timestamps and conditions: five straight known-person recognitions, three controlled stranger checks, three controlled no-face checks, one airplane-mode check, one revoke-and-retry check, and about twenty end-to-end timed runs. No result has been invented for these open cells.
+
 **Blocked, or need from someone**
 - A human to accept or change D20-D23.
 

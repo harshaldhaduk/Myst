@@ -115,16 +115,17 @@ These are **hard release gates** independent of the 100-point score. Any failure
 
 **Only claim these events if they really happen.** Fictional personas are fine; demo participants must consent to capture/enrollment.
 
-| Time (target 2:45) | What the judge sees | Rubric evidence |
+| Time (target 2:40) | What the judge sees | Rubric evidence to capture, not yet passed |
 |---|---|---|
-| **0:00–0:25** | Margaret struggles to greet Daniel. Briefly explain the emotional cost of forgotten faces. | H1, H6, O1 |
-| **0:25–0:45** | Family enrollment/consent and Daniel's approved relationship memory are visible. | H5, G01, G02, O1 |
-| **0:45–1:20** | Margaret asks for help; real authorized capture/model matches Daniel; private cue plays. Include enough product/interface proof to show the actual call. | A1, A2, H4, E1 |
-| **1:20–1:55** | Margaret asks about a shared memory. The answer comes from the enrolled context. **She turns to Daniel and starts a real conversation.** | H2, H3, A3, O4, E1 |
-| **Current filming adjustment** | The follow-up in the 1:20–1:55 row is unbuilt. Until a live follow-up passes, film the caregiver memory in the initial guarded cue and the resulting real human conversation; leave A3 unclaimed. The D25 conversation nudge is only a debug feasibility spike and does not belong in the hero footage yet. | H2/H3/O4 can be evidenced; A3 stays FAIL. |
-| **1:55–2:15** | Very fast explanation: input, actual model(s), approved context store, guardrails, output. Include the uncertainty pathway if feasible. | A4, A5, E4 |
-| **2:15–2:40** | Explain tools/harnesses/models **actually used to build and run** this project, plus why glasses are the right interface. | A5, O3, E3 |
-| **2:40–2:45** | Finish with the connection thesis, not a feature list. | H6, E3 |
+| **0:00–0:25** | A consenting teammate plays Daniel; show a greeting interrupted by uncertainty. Narration names the early-stage memory problem and the goal of reconnecting people. | H1, H6, O1 |
+| **0:25–0:45** | Brief phone capture of Daniel's consented Family profile and one caregiver-entered memory. Hide real personal data and the API key. | H5, G01, G02 |
+| **0:45–1:25** | Uncut wearer request, earcon, one real DAT photo, Muse match, hedged relationship cue and source-backed memory, then the wearer directly resumes talking with Daniel. Show phone state or a separate time-aligned trace. If the backup phone trigger is needed, show and label it. | A1, A2, H2, H3, H4, O4, E1 |
+| **1:25–1:50** | One consenting unenrolled-person or no-face request gives an unsure line. Film only after the required negative rehearsals pass; do not call one check an accuracy study. | A4, E2, G03 |
+| **1:50–2:20** | Simple diagram and source view: DAT photo → Android app → Muse Spark Standard-mode match → enrolled family record → ResponseGuard → Android TTS over Bluetooth. Distinguish model inference from stored facts and OS speech. | A5, E4, O3 |
+| **2:20–2:35** | Show the actual build tools used: DAT 1.0.1, Meta Model API, Android app, and honest live/experimental labels. Do not show D25's unpassed conversation nudge or describe WhatsApp as delivered. | A5, E3, S02, S03 |
+| **2:35–2:40** | Return to the two people speaking and finish with the connection thesis. | H6, E3 |
+
+The follow-up “What did we talk about last time?” and the D25 nudge are unbuilt. This plan uses the memory already included in the initial cue. A3 remains FAIL until a separate, grounded follow-up works on the device. Film the hero clip only after its trigger, face result, audible cue and resulting conversation succeed in one run.
 
 **Tradeoff:** If the video must cut something, remove object finding, flashy UI, and extra features **before** removing the Margaret–Daniel conversation, the live AI trace, or truthful limitations. The official suggested breakdown totals ~3 minutes; our outline compresses it to ~2:45 without omitting a required section.
 
@@ -235,7 +236,7 @@ These are **hard release gates** independent of the 100-point score. Any failure
 | O4 | FAIL | No walkthrough yet. Scope narrowed to Familiar Faces for the demo (D20); medication is reminders only, no bottle check (D24). | Lane 5. |
 | E1 | FAIL | No filmed run; no demo reset. | Lanes 2, 5. |
 | E2 | FAIL | No 5-run log, no negative tests, no reset, no unit tests (D13 not adopted). | Lane 2. |
-| E3 | FAIL | Video not recorded. | Lane 5. |
+| E3 | FAIL | Section 4 now has a truthful 2:40 shot plan; video not recorded or timed. | Lane 5: film and check final duration. |
 | E4 | PENDING | Real glasses capture and Muse calls (status files); mocks and experimental parts labeled in `core/Capability.kt` and on Home. MockIdentity removed and key out of the APK (D21, D22, ef9d32c); lint 0 errors. | Lane 2: run D21/D22 on the device. |
 | E5 | FAIL | Draft `docs/demo-script.md` covers setup, run order and labeled fallback; no reset or recorded fallback, and no fresh-operator rehearsal. | Lane 5: rehearse and record fallback. |
 
@@ -257,7 +258,7 @@ JUDGING-READY =
 ELSE: NOT JUDGING-READY; name the exact blockers.
 ```
 
-**Last audit:** `2026-10-25 02:45, D25 debug spike user report and docs review; no scored gate newly passed`
+**Last audit:** `2026-10-25 ~02:50, D25 spike report, rehearsal log and 2:40 shot plan; no scored gate newly passed`
 **Verified models/API calls:** `PARTIAL: muse-spark-1.3 calls recorded in hub/status/ (no inspectable trace)`  
 **Verified glasses hardware flow:** `PARTIAL: capture, Speech start, A2DP, MuseIdentity matches recorded in hub/status/; see AGENTS.md`  
 **Verified end-to-end live demo:** `NOT VERIFIED`  

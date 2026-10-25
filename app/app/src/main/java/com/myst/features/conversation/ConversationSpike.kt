@@ -97,7 +97,7 @@ class ConversationSpike(private val context: Context, private val key: () -> Str
       val spark = muse.structured("conversation spike", "Summarize only the transcript in at most 12 words. If unclear, confident=false and summary empty.",
           listOf(muse.textPart(transcript)), "conversation_spike", schema)
       val sparkText = when (spark) {
-        is MuseClient.Result.Ok -> "Spark ${spark.ms}ms, confident=${spark.json.optBoolean("confident")}, summary=${spark.json.optString("summary")}" 
+        is MuseClient.Result.Ok -> "Spark ${spark.ms}ms, confident=${spark.json.optBoolean("confident")}, summary=${spark.json.optString("summary")}"
         is MuseClient.Result.Failed -> "Spark failed ${spark.kind} ${spark.ms}ms"
       }
       Result("HFP routed=$routed; PCM=${pcm.size()} bytes (nonzero=$nonzero); $photoText; ASR ${asrMs}ms; $sparkText", transcript)

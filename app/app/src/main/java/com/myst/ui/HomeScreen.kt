@@ -149,8 +149,6 @@ fun HomeScreen(
 
     GlassesCard(ui, glasses, onRegister, onUnregister, onOpenGlassesUpdate)
 
-    if (ui.medications.isNotEmpty() && !ui.exactAlarms) ExactAlarmWarning()
-
     AboutCard(viewModel, camera)
 
     // Backup for when voice and tap both fail: same path (earcon, glasses photo, Muse), kept quiet.

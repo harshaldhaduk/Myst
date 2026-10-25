@@ -1,8 +1,5 @@
 package com.myst.ui
 
-import android.content.Intent
-import androidx.core.net.toUri
-import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.myst.core.guard.ResponseGuard
@@ -50,8 +46,6 @@ import java.util.Calendar
 internal fun RemindersPart(viewModel: EnrollViewModel, ui: EnrollUiState) {
   var editing by remember { mutableStateOf<Medication?>(null) }
   var formOpen by rememberSaveable { mutableStateOf(false) }
-
-  if (!ui.exactAlarms) ExactAlarmWarning()
 
   if (!formOpen) {
     PillButton(
@@ -296,30 +290,6 @@ private fun ReminderForm(viewModel: EnrollViewModel, ui: EnrollUiState, editing:
       )
       QuietButton("Cancel", onDone)
     }
-  }
-}
-
-/** Without "Alarms & reminders" access Android may deliver reminders a few minutes late. */
-@Composable
-internal fun ExactAlarmWarning() {
-  val context = LocalContext.current
-  Panel(tint = Myst.BlushWash, radius = 22.dp, padding = 16.dp) {
-    Text("Reminders may run a few minutes late", style = MaterialTheme.typography.titleMedium)
-    Text(
-        "Allow Myst to set alarms and reminders so dose reminders arrive on time.",
-        style = MaterialTheme.typography.bodySmall,
-    )
-    PillButton(
-        "Open alarm settings",
-        {
-          runCatching {
-            context.startActivity(
-                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, "package:${context.packageName}".toUri()),
-            )
-          }
-        },
-        color = Myst.Blush,
-    )
   }
 }
 

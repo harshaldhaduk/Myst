@@ -40,7 +40,7 @@ Filled from Meta's official docs on 2026-10-24 (detail in `hub/META_SUITE.md`, D
 | Family memory storage | Built: caregiver-entered memories per person (add, delete, reorder, guard-checked, max 5), rotated in the whisper; visit memory (D18). App-private, no backup. Store writes not checked on a phone. | Live (app logic) |
 | Label reading / bottle check | Removed (D24, efc2270; archived at the tag). Medication sends no frame to Muse. | Not in the demo |
 | Muse Spark API access | On device: `muse-spark-1.3` over plain HTTPS works; set `reasoning_effort` (default returned empty content 2 of 3). Key is provisioned by `scripts/provision-muse-key.sh` into Keystore-encrypted app storage, not compiled into the APK (D22; task handoff reports S23 Ultra provisioning, not independently inspected this session). | Live |
-| Dose-time scheduling | Built: AlarmManager reminders, re-remind +10/+20 min, reschedule at boot. Emulator only. | Live (OS feature); frozen (D20) |
+| Dose-time scheduling | Built: AlarmManager reminders, re-remind +10/+20 min, reschedule at boot. Falls back to an inexact alarm without exact-alarm access; no access warning in the UI. Emulator only. | Live (OS feature); frozen (D20) |
 | Caregiver alerts | Built: missed-dose notification on this phone only. WhatsApp not built (Q13). | Mock (WhatsApp); frozen (D20) |
 | Face blur before Muse Spark | No Meta tool known. Only face ID sends frames (on request, dev builds, D12); medication sends none (D24). | No blur; frames only on request for face ID |
 | Object recognition, saved locations | Roadmap (D8). SAM 3.1 and Muse Spark grounding exist. | Roadmap |

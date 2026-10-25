@@ -3,6 +3,7 @@
 Updated 03:50 by Codex
 
 **Shipped** (on `main`, pushed: ef9d32c, 7aeed51, efc2270)
+- Removed the exact-alarm warning bubble and its settings button from Home and Reminders at Mayank's request; reminder scheduling still falls back to an inexact alarm when exact access is unavailable. Updated the app README and PRD.
 - Glasses battery UI: Home observes DAT 1.0.1 device metadata for one connected pair and displays a positive percentage in the status pill and Glasses card; otherwise battery is unavailable. DAT 0% disagreed with Meta AI's charged indication, so 0 is now treated as unavailable.
 - Hub docs brought up to date (D23); decisions D20-D23 Proposed.
 - D21: `MockIdentity` removed; hedged matches ("I think that's Daniel, your son."); "I can't check right now" on Muse/network/key failure; "I can't see right now" on capture failure; "Face recognition isn't set up on this phone." when the build has no face ID; guarded fallback lines instead of silence; reference photos read off the main thread; 150 ms earcon (OS audio) after every trigger.
@@ -28,6 +29,7 @@ Updated 03:50 by Codex
 - Mayank subsequently reported that the glasses/app communication recovered through a hardware-side fix. No new capture/recognition results or exact recovery steps have been recorded yet.
 
 **Gaps**
+- Without exact-alarm access, Android may deliver a dose reminder late; the app no longer surfaces that access state in the UI. This UI change has not been checked on a device.
 - DAT battery percentage disagreed with Meta AI: Myst displayed 0% while Meta AI showed charge. Treat 0 as unavailable; actual glasses charge/runtime are not known.
 - Stranger, no-face and failure trials (gate A4, E2) after D21 lands.
 - D25: confirm DAT Speech phrase while AudioRecord is active, hear the teammate at about 1 m, collect the ASR/Spark timings, and diagnose Spark's invalid structured answer. The debug control does not start a visit or whisper a nudge.

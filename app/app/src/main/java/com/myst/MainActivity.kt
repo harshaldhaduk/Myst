@@ -4,7 +4,9 @@ import android.Manifest.permission.BLUETOOTH
 import android.Manifest.permission.BLUETOOTH_CONNECT
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.os.Bundle
+import android.graphics.Color
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
@@ -13,8 +15,8 @@ import androidx.activity.viewModels
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
-import com.myst.ui.EnrollScreen
 import com.myst.ui.EnrollViewModel
+import com.myst.ui.MystApp
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -53,18 +55,21 @@ class MainActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    enableEdgeToEdge()
+    // White app: dark status and navigation bar icons.
+    enableEdgeToEdge(
+        statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+    )
     setContent {
-      EnrollScreen(
+      MystApp(
           viewModel = viewModel,
           onRegister = { viewModel.gateway.startRegistration(this) },
           onUnregister = { viewModel.gateway.startUnregistration(this) },
           onCapture = { viewModel.capture(::requestWearablesPermission) },
           onWhoIsThis = { viewModel.whoIsThis(::requestWearablesPermission) },
-          onListening = { on -> viewModel.setListening(on, ::requestWearablesPermission) },
+          onMystOn = { on -> viewModel.setMystOn(on, ::requestWearablesPermission) },
           onOpenGlassesUpdate = { viewModel.openGlassesUpdate(this) },
           onCheckBottle = { viewModel.checkBottle(::requestWearablesPermission) },
-          onTapTrigger = { on -> viewModel.setTapTrigger(on, ::requestWearablesPermission) },
       )
     }
   }

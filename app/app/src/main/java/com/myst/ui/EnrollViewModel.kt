@@ -35,10 +35,12 @@ import com.myst.glasses.CaptureResult
 import com.myst.glasses.GlassesTapTrigger
 import com.myst.glasses.CaptureTimings
 import com.myst.glasses.DatGlassesGateway
-import com.myst.glasses.MockGlassesKit
 import com.myst.glasses.Photo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -53,8 +55,6 @@ data class EnrollUiState(
     val message: String? = null,
     val pending: PendingPhoto? = null,
     val people: List<Person> = emptyList(),
-    /** Demo Controls: who the operator says is in front of the wearer (null = not enrolled). */
-    val mockPickId: String? = null,
     val identifying: Boolean = false,
     val lastWhisper: WhisperResult? = null,
     /** The glasses refused with DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED; offer the update screen. */
@@ -64,7 +64,14 @@ data class EnrollUiState(
     val events: List<Event> = emptyList(),
     val checkingBottle: Boolean = false,
     val lastBottle: BottleCheckView? = null,
+    /** The most recent thing Myst said (or chose not to say), for the Home screen. */
+    val lastSaid: LastSaid? = null,
+    /** Why voice listening isn't running while Myst is on, in plain words; null when it's fine. */
+    val voiceProblem: String? = null,
 )
+
+/** [quiet] means Myst stayed silent or was unsure; [note] explains a missing photo, if any. */
+data class LastSaid(val text: String, val atMillis: Long, val quiet: Boolean, val note: String? = null)
 
 /** What the bottle test shows: both kinds of evidence and what was spoken. */
 data class BottleCheckView(
@@ -77,12 +84,13 @@ data class BottleCheckView(
 
 class EnrollViewModel(application: Application) : AndroidViewModel(application) {
   private companion object {
+    /** DAT may be initialized once per process; a recreated screen gets a new ViewModel. */
+    @Volatile var datInitialized = false
     const val MAX_MEMORIES = 5
     const val MAX_MEMORY_CHARS = 140
   }
 
   val gateway = DatGlassesGateway(viewModelScope)
-  private val mockKit = MockGlassesKit(application)
   private val store = PeopleStore(application)
   private val household = HouseholdStore(application)
 
@@ -91,7 +99,8 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   val speaker = AndroidTtsSpeaker(application)
   val mockIdentity =
-      MockIdentity(picked = { _ui.value.let { s -> s.people.firstOrNull { it.id == s.mockPickId } } })
+      // Without face matching compiled in (D12), nobody is picked, so Myst answers "not sure".
+      MockIdentity(picked = { null })
 
   /** D12: only exists when a human built with myst.allowFaceId=true. */
   val museIdentity: MuseIdentity? =
@@ -130,27 +139,14 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   init {
     refreshPeople()
     refreshHousehold()
+    // Fast demo timing has no switch any more; make sure an old setting cannot stay on.
+    if (DoseReminders.fastDemo(application)) DoseReminders.setFastDemo(application, false)
     viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
   }
 
   // MARK: - Dose reminders
 
-  private val _fastDemo = MutableStateFlow(DoseReminders.fastDemo(application))
-  val fastDemo: StateFlow<Boolean> = _fastDemo.asStateFlow()
-
-  fun setFastDemo(on: Boolean) {
-    DoseReminders.setFastDemo(getApplication(), on)
-    _fastDemo.value = on
-    viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
-  }
-
   fun exactAlarmsAllowed(): Boolean = DoseReminders.canScheduleExact(getApplication())
-
-  /** R15 demo control: the reminder now, with re-reminders timed from now. */
-  fun remindNow(med: Medication) {
-    viewModelScope.launch(Dispatchers.IO) { DoseReminders.remindNow(getApplication(), med) }
-    _ui.update { it.copy(message = "Reminder for ${med.labelName} fired now.") }
-  }
 
   /** R11/R12: log "reported taken" (D6), unless this dose was already reported. */
   fun markTaken(med: Medication) {
@@ -285,7 +281,14 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
                 captureNote = null,
             )
           }
-      _ui.update { it.copy(checkingBottle = false, lastBottle = view) }
+      val said =
+          LastSaid(
+              text = view.spoken ?: "I couldn't tell which medicine that is.",
+              atMillis = System.currentTimeMillis(),
+              quiet = view.spoken == null,
+              note = view.captureNote,
+          )
+      _ui.update { it.copy(checkingBottle = false, lastBottle = view, lastSaid = said) }
     }
   }
 
@@ -307,8 +310,6 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     }
   }
 
-  fun pickMockPerson(id: String?) = _ui.update { it.copy(mockPickId = id) }
-
   fun openGlassesUpdate(activity: Activity) {
     gateway.openGlassesUpdate(activity)?.let { f ->
       _ui.update { it.copy(message = "Could not open the update screen: $f") }
@@ -319,6 +320,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   fun setListening(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
     if (!on) {
       gateway.stopListening()
+      _ui.update { it.copy(voiceProblem = null) }
       return
     }
     viewModelScope.launch {
@@ -332,8 +334,9 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
           }
       _ui.update {
         it.copy(
-            message = failure?.let { f -> "Listening failed: $f" } ?: "Listening for \"Who is this?\" and \"What is this?\"",
-            needsGlassesUpdate = failure?.contains("update") == true,
+            message = if (failure == null) "Listening for \"Who is this?\" and \"What is this?\"" else null,
+            voiceProblem = failure?.let(::plainVoiceProblem),
+            needsGlassesUpdate = failure?.contains("update", ignoreCase = true) == true,
         )
       }
     }
@@ -355,24 +358,36 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     _ui.update { it.copy(message = if (on) "Tap the glasses to ask \"Who is this?\"" else "Glasses tap off.") }
   }
 
-  /** MOCK: makes the simulated glasses "hear" the phrase. Mock Device Kit only. */
-  fun simulateWhoIsThis() {
-    mockKit.simulateSpeech("Who is this?")?.let { f -> _ui.update { it.copy(message = f) } }
+  // MARK: - The one switch
+
+  /** Myst is on when it is listening for a phrase or a glasses tap. */
+  val mystOn: StateFlow<Boolean> =
+      combine(gateway.isListening, _tapOn) { listening, tap -> listening || tap }
+          .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+  /**
+   * One switch for everything the wearer uses: listen for "Who is this?" and "What is this?",
+   * answer a tap on the glasses, and recognize faces when this build allows it (D12).
+   * Called from a tap, because the glasses mic permission needs a user action.
+   */
+  fun setMystOn(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
+    setAutoIdentify(on)
+    setTapTrigger(on, requestPermission)
+    setListening(on, requestPermission)
+    if (!on) _ui.update { it.copy(message = "Myst is resting.") }
   }
 
-  /** DEMO CONTROL: pretend this person was last recognized [hoursAgo] hours ago (labeled DEMO in the log). */
-  fun backfillSighting(person: Person, hoursAgo: Int) {
-    viewModelScope.launch(Dispatchers.IO) {
-      household.logSighting(
-          person.id,
-          System.currentTimeMillis() - hoursAgo * 3_600_000L,
-          "DEMO backfill",
-          force = true,
-      )
-      refreshHousehold()
-      _ui.update { it.copy(message = "Demo: ${person.name} was last seen $hoursAgo h ago.") }
-    }
-  }
+  private fun plainVoiceProblem(failure: String): String =
+      when {
+        failure.contains("UNAVAILABLE", ignoreCase = true) ->
+            "Voice didn't start: the glasses didn't answer. Make sure they're on, then try again."
+        failure.contains("update", ignoreCase = true) -> "Voice didn't start: the glasses need an update."
+        failure.contains("permission", ignoreCase = true) || failure.contains("denied", ignoreCase = true) ->
+            "Voice didn't start: allow the microphone for Myst in the Meta AI app."
+        else -> "Voice didn't start ($failure). Try again."
+      }
+
+  fun clearMessage() = _ui.update { it.copy(message = null) }
 
   fun whoIsThis(requestPermission: suspend (Permission) -> PermissionStatus) {
     if (_ui.value.identifying || _ui.value.capturing) return
@@ -383,6 +398,13 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
         it.copy(
             identifying = false,
             lastWhisper = result,
+            lastSaid =
+                LastSaid(
+                    text = result.spoken ?: "Stayed quiet: the answer didn't pass the safety check.",
+                    atMillis = System.currentTimeMillis(),
+                    quiet = result.spoken == null || result.spoken == FamiliarFaces.NOT_SURE,
+                    note = result.note,
+                ),
             needsGlassesUpdate = result.glassesUpdateRequired,
         )
       }
@@ -403,36 +425,30 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
       return
     }
     if (_ui.value.datReady) return
+    if (datInitialized) {
+      // The process already initialized DAT (the screen was recreated); only start watching again.
+      gateway.startMonitoring()
+      _ui.update { it.copy(datReady = true) }
+      return
+    }
     Wearables.initialize(getApplication())
         .fold(
             {
+              datInitialized = true
               gateway.startMonitoring()
               _ui.update { it.copy(datReady = true) }
             },
             { error, _ ->
-              _ui.update { it.copy(message = "DAT initialize failed: ${error.description}") }
+              _ui.update { it.copy(message = "Couldn't start the glasses toolkit: ${error.description}") }
             },
         )
-  }
-
-  fun setMockGlasses(enabled: Boolean) {
-    val failure = if (enabled) mockKit.enable() else null.also { mockKit.disable() }
-    gateway.setMockMode(enabled && failure == null)
-    _ui.update {
-      it.copy(
-          message =
-              failure
-                  ?: if (enabled) "Mock glasses paired (simulated, no hardware)."
-                  else "Mock glasses off.",
-      )
-    }
   }
 
   fun capture(requestPermission: suspend (Permission) -> PermissionStatus) {
     if (_ui.value.capturing) return
     _ui.update { it.copy(capturing = true, message = null) }
     viewModelScope.launch {
-      val source = if (mockKit.isEnabled) PhotoSource.MOCK_DEVICE_KIT else PhotoSource.GLASSES
+      val source = PhotoSource.GLASSES
       val result = gateway.capturePhoto(requestPermission)
       _ui.update {
         when (result) {

@@ -7,7 +7,7 @@ import com.myst.core.records.Person
  * A [GuardedLine] can only be made by [check], so the speaker cannot say an unchecked line.
  */
 object ResponseGuard {
-  const val MAX_WORDS = 20
+  const val MAX_WORDS = 40
 
   private val BANNED =
       listOf("remember", "forgot", "forget", "wrong", "don't you know", "do you know", "recognize me")

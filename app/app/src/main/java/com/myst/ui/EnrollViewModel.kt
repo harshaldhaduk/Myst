@@ -10,6 +10,7 @@ import com.meta.wearable.dat.core.types.PermissionStatus
 import com.myst.core.records.HouseholdStore
 import com.myst.core.records.Medication
 import com.myst.core.records.Memory
+import com.myst.core.records.DemoMemories
 import com.myst.core.records.PeopleStore
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
@@ -432,7 +433,8 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
         when {
           clean.isEmpty() -> "Type the memory first."
           clean.length > MAX_MEMORY_CHARS -> "Keep it under $MAX_MEMORY_CHARS characters."
-          person.memories.size >= MAX_MEMORIES -> "Up to $MAX_MEMORIES memories per person; delete one first."
+          person.memories.count { !DemoMemories.isDemo(it) } >= MAX_MEMORIES ->
+              "Up to $MAX_MEMORIES caregiver memories per person; delete one first."
           else ->
               (ResponseGuard.check(clean, person, _ui.value.people) as? ResponseGuard.Decision.Block)
                   ?.let { "Can't be spoken: ${it.reason}." }
@@ -448,7 +450,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
         it.copy(
             message =
                 "Saved a memory for ${person.name}." +
-                    if (long) " Long ones are skipped when the whisper would pass 20 words." else "",
+                    if (long) " Long ones are skipped when the whisper would pass ${ResponseGuard.MAX_WORDS} words." else "",
         )
       }
       refreshPeople()
@@ -484,7 +486,9 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   private fun refreshPeople() {
     viewModelScope.launch {
-      val people = withContext(Dispatchers.IO) { store.all() }
+      val people = withContext(Dispatchers.IO) {
+        if (BuildConfig.DEBUG) store.seedDemoMemories() else store.all()
+      }
       _ui.update { it.copy(people = people) }
     }
   }

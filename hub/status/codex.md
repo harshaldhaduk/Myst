@@ -31,3 +31,14 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 **Files / coordination**
 - Cross-lane application files: `glasses/GlassesTapTrigger.kt`, `ui/HomeScreen.kt`, `ui/EnrollViewModel.kt`.
 - Documentation: AGENTS, CLAUDE, GEMINI, PROJECT_CONTEXT, app README, PRD, META_SUITE, DECISIONS, IDEAS, META_JUDGING_GATE, and this status.
+
+**Current slice: seeded recognition context (D30)**
+- Added fictional demo bundles for existing Krishna/RJ enrollments, applied once in debug builds on load/enrollment refresh. Names, relationships, photos, consent and all caregiver memories remain. A backward-compatible Person JSON marker prevents duplicates and respects seed deletion across restarts.
+- After a confident match, the guarded whisper (now up to 40 words, D31) keeps the interaction and personal detail together ahead of the generated visit timestamp. Long relationships can fall back to name plus the full bundle. Other people retain visit/memory rotation. Real VISIT logging is unchanged; no synthetic visit records or identities are created.
+- Family and the last-answer note label scripted context; deleting the seed restores normal memory behavior. Five caregiver-memory slots remain independent of the seed.
+- Cross-lane code: `core/records/{DemoMemories,PeopleStore,Schema}.kt`, `features/faces/FamiliarFaces.kt`, `ui/{EnrollViewModel,SetupScreen}.kt`. Docs: AGENTS, PRD, META_SUITE, app README, H3 ledger, DECISIONS and this status.
+- `assembleDebug` and `lintDebug` passed. 24 pure-JVM checks passed against the actual Schema, DemoMemories, VisitMemory and ResponseGuard code: old JSON migration, stored seed-marker round trip, idempotence, persistent deletion, preservation of five caregiver memories and identity data, name aliases, both complete guarded answers, long-relationship fallback and cross-subject guard refusal. Checks ran in a throwaway harness outside the repo; no new app/test dependency. No device installation or recognition run from this computer; deployment remains with the original signing computer above.
+
+**Word-limit update (D31)**
+- User raised the shared response limit to 40 words. Visit composition and memory validation already read ResponseGuard.MAX_WORDS; the saved-memory hint now does too. Active README/PRD/platform text matches 40. Earlier decision/status descriptions of 20 refer to previous builds.
+- Exactly 40 words passes, 41 words is blocked, and visit composition can include a full line longer than 20 words. All 24 seed/migration/guard checks and a fresh assembleDebug/lintDebug run passed.

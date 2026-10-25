@@ -186,7 +186,7 @@ Mirrors the PRD table, which also records what is built on `main`. Detail and so
 | Speech in | HFP mic plus Muse Voice Transcribe realtime or file upload, or DAT Speech (experimental) [Docs]. D25 spike: HFP + one DAT photo + wearer transcription worked; DAT Speech sharing and other-speaker pickup unproved [Verified on device, partial]. | DAT Speech (D17); conversation nudge paused (D25) |
 | Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Speech phrase (D17) plus a quiet "Backup: Who is this?" text button on Home (D24); glasses tap via MediaSession untested |
 | Person identification | Policy-gated, no Meta matcher [Docs]. Muse Spark comparison works in dev testing [Verified on device, partial]. | `MuseIdentity`, dev builds only (D12); never presented as Meta-approved |
-| Memory storage | Caregiver records on the phone | Live (app logic) |
+| Memory storage | Caregiver records on the phone; D30 adds explicitly fictional Krishna/RJ demo bundles after a real match | Live storage; D30 context is scripted (mock) |
 | Label reading and bottle check | Muse Spark image understanding plus structured output [Docs]. | Removed (D24, efc2270): medication sends no frame to Muse |
 | Muse access | HTTPS, key from dashboard; region claims conflict (section 10). Our key works [Verified on device]. | Live |
 | Dose scheduling | Android alarms (host OS) | Live; OS feature, confirm under D5 |
@@ -204,7 +204,7 @@ Wearer        Glasses              Android phone (Myst)                       Me
                                     caregiver records (on phone, family-written)
                                     Muse Spark: face match only (D12) --------> api.meta.ai/v1
                                     dose reminders: Android alarms, no frame (D24)
-                                    guard: uncertainty, source records, 20 words
+                                    guard: uncertainty, source records, 40 words
  whisper <--- speaker A2DP <-----   Android TextToSpeech (OS, D17)
                                     WhatsApp template alert ------------------> Graph API
 ```

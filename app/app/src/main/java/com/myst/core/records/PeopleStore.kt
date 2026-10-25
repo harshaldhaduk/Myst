@@ -22,6 +22,15 @@ class PeopleStore(context: Context) {
     return (0 until arr.length()).map { Person.fromJson(arr.getJSONObject(it)) }
   }
 
+  /** D30, called only in debug builds: preserve existing enrollment and caregiver memories. */
+  @Synchronized
+  fun seedDemoMemories(): List<Person> {
+    val people = all()
+    val seeded = people.map(DemoMemories::seed)
+    if (seeded != people) write(seeded)
+    return seeded
+  }
+
   @Synchronized
   fun enroll(
       name: String,

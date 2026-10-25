@@ -6,6 +6,7 @@ import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.myst.core.guard.ResponseGuard
 import com.myst.core.records.Person
+import com.myst.core.records.DemoMemories
 import com.myst.core.records.VisitMemory
 import com.myst.glasses.CaptureResult
 import com.myst.glasses.GlassesGateway
@@ -93,7 +94,10 @@ class FamiliarFaces(
           // Which fallback level was used, never the line itself.
           Log.i(TAG, "whisper level $level of ${candidates.size - 1}")
           speaker.say(d.line)
-          return WhisperResult(label, d.line.text, firstBlock, captureMs, SystemClock.elapsedRealtime() - t0, null)
+          return WhisperResult(
+              label, d.line.text, firstBlock, captureMs, SystemClock.elapsedRealtime() - t0,
+              DemoMemories.noteFor(match.person, d.line.text),
+          )
         }
         is ResponseGuard.Decision.Block -> if (firstBlock == null) firstBlock = d.reason
       }
@@ -148,13 +152,14 @@ class FamiliarFaces(
 
   /**
    * Hedged name first, then relationship (R2), then when she last saw them (D18), then one
-   * caregiver-written memory if there is room under the 20-word limit. Longest first: the full
+   * caregiver-written memory if there is room under the guard's word limit. Longest first: the full
    * line, then without the memory, then the name and relationship alone.
    */
   private fun whisperCandidates(person: Person, previous: Long?, now: Long): List<String> {
     val relation = person.relationship.trim().lowercase().takeIf { it.isNotEmpty() }
     val base =
         if (relation != null) "I think that's ${person.name}, your $relation." else "I think that's ${person.name}."
+    DemoMemories.whisperCandidates(person, base)?.let { return it }
     val visit = VisitMemory.sentence(person.name, previous, now)
     val memory = nextMemory(person)?.text?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }?.let { "$it." }
     return listOf(VisitMemory.compose(base, visit, memory), VisitMemory.compose(base, visit, null), base).distinct()

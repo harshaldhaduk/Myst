@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.myst.core.records.EventType
 import com.myst.core.records.Person
 import com.myst.core.records.VisitMemory
+import com.myst.core.records.DemoMemories
 import com.myst.ui.theme.Myst
 
 private enum class SetupPart(val title: String, val tint: Color) {
@@ -214,6 +215,7 @@ private fun PersonCard(
 ) {
   var confirmRemove by remember(person.id) { mutableStateOf(false) }
   var draft by remember(person.id) { mutableStateOf("") }
+  val hasDemoContext = person.memories.any(DemoMemories::isDemo)
 
   Panel(tint = Myst.BlushWash) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -226,7 +228,8 @@ private fun PersonCard(
     }
 
     SmallLabel(
-        if (person.memories.isEmpty()) "Add a memory she'll hear after their name"
+        if (hasDemoContext) "Fictional demo context is spoken each time. Delete it to use other memories."
+        else if (person.memories.isEmpty()) "Add a memory she'll hear after their name"
         else "Memories: the first is said first, then they take turns",
     )
     if (person.memories.isNotEmpty()) {
@@ -236,12 +239,12 @@ private fun PersonCard(
           Column(Modifier.padding(start = 16.dp, top = 10.dp, end = 4.dp)) {
             Text(m.text, style = MaterialTheme.typography.bodyLarge)
             Row(verticalAlignment = Alignment.CenterVertically) {
-              if (i == 0) {
-                Tag("Said first", Myst.Blush)
+              if (DemoMemories.isDemo(m) || (i == 0 && !hasDemoContext)) {
+                Tag(if (DemoMemories.isDemo(m)) "Demo context" else "Said first", Myst.Blush)
                 Spacer(Modifier.width(8.dp))
               }
               Text("by ${m.author}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
-              if (i > 0) QuietButton("Say first", { onMakeFirst(i) }, color = Myst.Ink)
+              if (i > 0 && !hasDemoContext) QuietButton("Say first", { onMakeFirst(i) }, color = Myst.Ink)
               QuietButton("Delete", { onRemoveMemory(i) })
             }
           }

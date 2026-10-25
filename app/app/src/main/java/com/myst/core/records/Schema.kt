@@ -30,6 +30,8 @@ data class Person(
     val photoSource: PhotoSource?,
     val memories: List<Memory> = emptyList(),
     val createdAtMillis: Long,
+    /** D30: a deleted demo seed must not reappear when the app restarts. */
+    val demoMemorySeeded: Boolean = false,
 ) {
   /** Memory edits return a new Person; an out-of-range index changes nothing. */
   fun withMemory(memory: Memory) = copy(memories = memories + memory)
@@ -63,6 +65,7 @@ data class Person(
               },
           )
           .put("createdAtMillis", createdAtMillis)
+          .put("demoMemorySeeded", demoMemorySeeded)
 
   companion object {
     fun fromJson(o: JSONObject): Person {
@@ -83,6 +86,7 @@ data class Person(
                 Memory(m.getString("text"), m.getString("author"))
               },
           createdAtMillis = o.getLong("createdAtMillis"),
+          demoMemorySeeded = o.optBoolean("demoMemorySeeded", false),
       )
     }
   }

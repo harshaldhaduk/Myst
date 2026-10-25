@@ -31,6 +31,18 @@ data class Person(
     val memories: List<Memory> = emptyList(),
     val createdAtMillis: Long,
 ) {
+  /** Memory edits return a new Person; an out-of-range index changes nothing. */
+  fun withMemory(memory: Memory) = copy(memories = memories + memory)
+
+  fun withoutMemory(index: Int) =
+      if (index in memories.indices) copy(memories = memories.filterIndexed { i, _ -> i != index }) else this
+
+  /** The first memory is the one Myst speaks. */
+  fun withMemoryFirst(index: Int) =
+      if (index in memories.indices) {
+        copy(memories = listOf(memories[index]) + memories.filterIndexed { i, _ -> i != index })
+      } else this
+
   fun toJson(): JSONObject =
       JSONObject()
           .put("id", id)

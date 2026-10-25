@@ -75,6 +75,11 @@ data class BottleCheckView(
 )
 
 class EnrollViewModel(application: Application) : AndroidViewModel(application) {
+  private companion object {
+    const val MAX_MEMORIES = 5
+    const val MAX_MEMORY_CHARS = 140
+  }
+
   val gateway = DatGlassesGateway(viewModelScope)
   private val mockKit = MockGlassesKit(application)
   private val store = PeopleStore(application)
@@ -492,6 +497,54 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
             store.enroll(name, relationship, consentRecordedBy, pending?.photo?.jpeg, pending?.source)
           }
       _ui.update { it.copy(pending = null, message = "Saved ${person.name} on this phone.") }
+      refreshPeople()
+    }
+  }
+
+  /**
+   * Caregiver adds a memory (R14). It is checked like a spoken line now, so a memory the guard
+   * would block (a banned phrase, a question, another family member's name) is refused here
+   * instead of silencing the whole whisper later.
+   */
+  fun addMemory(person: Person, text: String) {
+    val clean = text.trim().replace(Regex("\\s+"), " ")
+    val problem =
+        when {
+          clean.isEmpty() -> "Type the memory first."
+          clean.length > MAX_MEMORY_CHARS -> "Keep it under $MAX_MEMORY_CHARS characters."
+          person.memories.size >= MAX_MEMORIES -> "Up to $MAX_MEMORIES memories per person; delete one first."
+          else ->
+              (ResponseGuard.check(clean, person, _ui.value.people) as? ResponseGuard.Decision.Block)
+                  ?.let { "Can't be spoken: ${it.reason}." }
+        }
+    if (problem != null) {
+      _ui.update { it.copy(message = problem) }
+      return
+    }
+    viewModelScope.launch {
+      withContext(Dispatchers.IO) { store.addMemory(person.id, Memory(clean, person.consent.recordedBy)) }
+      val long = clean.split(" ").size > 10
+      _ui.update {
+        it.copy(
+            message =
+                "Saved a memory for ${person.name}." +
+                    if (long) " Long ones are skipped when the whisper would pass 20 words." else "",
+        )
+      }
+      refreshPeople()
+    }
+  }
+
+  fun removeMemory(person: Person, index: Int) {
+    viewModelScope.launch {
+      withContext(Dispatchers.IO) { store.removeMemory(person.id, index) }
+      refreshPeople()
+    }
+  }
+
+  fun makeFirstMemory(person: Person, index: Int) {
+    viewModelScope.launch {
+      withContext(Dispatchers.IO) { store.makeFirstMemory(person.id, index) }
       refreshPeople()
     }
   }

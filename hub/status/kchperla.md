@@ -23,11 +23,12 @@ Lane choice is provisional: taken because this person has the phone and glasses.
   - Built: `core/records/VisitMemory.kt` (encounter rule, wording, 20-word composer, 30-day expiry), `HouseholdStore.logSighting/sightings/deleteSightings`, `FamiliarFaces` (reads earlier sightings, then logs a match), revoke deletes sightings, Family tab shows "Last recognized", demo button "Demo: seen 5 h ago".
   - Checked: app compiles (assembleDebug). 23 scenario checks of `VisitMemory` ran on the JVM through a throwaway harness outside the repo (1 PM then 6 PM, repeat ask in one meeting, 7 days silent, midnight crossing, word limit, expiry): all pass. No JUnit in the repo yet (D13 Proposed), so these are not committed as tests.
   - Demo data: button "Load demo data (fictional)" adds Daniel (son) and Emily (granddaughter) with one memory and an earlier sighting each, consent "Robert (demo data)", no photos (so mock identity only). Skips names already enrolled.
+  - Memory entry (branch `kchperla/memory-entry`): caregiver can add, delete and reorder memories on each person's row in the Family tab. `PeopleStore.addMemory/removeMemory/makeFirstMemory` rewrite the record through the existing atomic write; list edits are pure `Person.withMemory/withoutMemory/withMemoryFirst`. A new memory is checked with `ResponseGuard` at entry (banned phrases, questions, other family names, over 20 words are refused), max 5 per person and 140 characters, author is whoever recorded consent. The first memory is the one spoken.
+  - Checked: 21 scenario checks on the JVM against the real `Schema.kt`, `VisitMemory.kt`, `ResponseGuard.kt` and a real org.json (not Android's): JSON round trip incl. quotes, newline, unicode and emoji, an old record with no memories key, remove, make-first, out-of-range indexes, guard refusals, and the final spoken line. Not checked: the file write on a phone, and the screen.
   - Not yet run on a device: store writes, revoke cleanup, and the spoken line through the glasses.
 - Spike from hub/LOOP.md section 5, step 1: build the DAT Android sample and run it with Mock Device Kit, then on the real glasses.
 
 **Blocked, or need from someone**
-- Gap found: nothing in the app lets a caregiver enter a person's memory (`Person.memories` is only read). The demo button seeds it directly. A memory-entry field is needed for R2 and R14 (Lane 4).
 - Exact glasses model not yet recorded (Q1). Developer mode is reported on by the user; not yet verified in the app.
 - Muse Spark API key for spike step 5: goes in ignored .env (MUSE_API_KEY, empty file created); where hackathon credits are issued is unknown.
 - Human call on Q3 (trigger, Android TTS under D5) and Q10 (scope conflict).

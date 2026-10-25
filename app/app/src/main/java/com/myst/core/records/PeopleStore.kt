@@ -57,6 +57,31 @@ class PeopleStore(context: Context) {
     write(people.filterNot { it.id == id })
   }
 
+  // MARK: - Memories (R2, R14): caregiver-written, attributed, and the only source for spoken memories.
+
+  /** Appends one memory and writes the whole record back. Null if the person no longer exists. */
+  @Synchronized
+  fun addMemory(personId: String, memory: Memory): Person? =
+      update(personId) { it.withMemory(memory) }
+
+  /** Deletes the memory at [index]. An out-of-range index changes nothing. */
+  @Synchronized
+  fun removeMemory(personId: String, index: Int): Person? =
+      update(personId) { it.withoutMemory(index) }
+
+  /** The first memory is the one Myst speaks; this moves [index] to the front. */
+  @Synchronized
+  fun makeFirstMemory(personId: String, index: Int): Person? =
+      update(personId) { it.withMemoryFirst(index) }
+
+  private fun update(id: String, change: (Person) -> Person): Person? {
+    val people = all()
+    val old = people.firstOrNull { it.id == id } ?: return null
+    val updated = change(old)
+    write(people.map { if (it.id == id) updated else it })
+    return updated
+  }
+
   fun photo(person: Person): File? = person.photoFile?.let { File(dir, it) }?.takeIf { it.exists() }
 
   private fun write(people: List<Person>) {

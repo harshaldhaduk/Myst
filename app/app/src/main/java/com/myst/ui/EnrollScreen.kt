@@ -183,6 +183,9 @@ fun EnrollScreen(
                   },
               onBackfill = { viewModel.backfillSighting(person, 5) },
               onRevoke = { viewModel.revoke(person) },
+              onAddMemory = { viewModel.addMemory(person, it) },
+              onRemoveMemory = { viewModel.removeMemory(person, it) },
+              onMakeFirst = { viewModel.makeFirstMemory(person, it) },
           )
         }
       }
@@ -324,19 +327,52 @@ private fun PersonRow(
     lastSeen: String,
     onBackfill: () -> Unit,
     onRevoke: () -> Unit,
+    onAddMemory: (String) -> Unit,
+    onRemoveMemory: (Int) -> Unit,
+    onMakeFirst: (Int) -> Unit,
 ) {
-  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-    if (photo != null) JpegImage(photo, Modifier.size(56.dp))
-    Column(Modifier.weight(1f)) {
-      Text(person.name, fontWeight = FontWeight.SemiBold)
-      Text(person.relationship.ifBlank { "—" }, style = MaterialTheme.typography.bodySmall)
-      Text("Consent recorded by ${person.consent.recordedBy}", style = MaterialTheme.typography.bodySmall)
-      Text(lastSeen, style = MaterialTheme.typography.bodySmall)
-      if (person.photoSource == PhotoSource.MOCK_DEVICE_KIT) LabelChip(Label.MOCK)
+  Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+      if (photo != null) JpegImage(photo, Modifier.size(56.dp))
+      Column(Modifier.weight(1f)) {
+        Text(person.name, fontWeight = FontWeight.SemiBold)
+        Text(person.relationship.ifBlank { "—" }, style = MaterialTheme.typography.bodySmall)
+        Text("Consent recorded by ${person.consent.recordedBy}", style = MaterialTheme.typography.bodySmall)
+        Text(lastSeen, style = MaterialTheme.typography.bodySmall)
+        if (person.photoSource == PhotoSource.MOCK_DEVICE_KIT) LabelChip(Label.MOCK)
+      }
+      Column(horizontalAlignment = Alignment.End) {
+        OutlinedButton(onClick = onRevoke) { Text("Revoke") }
+        TextButton(onClick = onBackfill) { Text("Demo: seen 5 h ago") }
+      }
     }
-    Column(horizontalAlignment = Alignment.End) {
-      OutlinedButton(onClick = onRevoke) { Text("Revoke") }
-      TextButton(onClick = onBackfill) { Text("Demo: seen 5 h ago") }
+    Text(
+        if (person.memories.isEmpty()) "No memories yet. Add one the wearer will hear after the name."
+        else "Memories (the first one is spoken):",
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = FontWeight.SemiBold,
+    )
+    person.memories.forEachIndexed { i, m ->
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "${i + 1}. ${m.text}  (by ${m.author})",
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        if (i > 0) TextButton(onClick = { onMakeFirst(i) }) { Text("Use first") }
+        TextButton(onClick = { onRemoveMemory(i) }) { Text("Delete") }
+      }
+    }
+    var draft by remember(person.id) { mutableStateOf("") }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      OutlinedTextField(
+          draft,
+          { draft = it },
+          Modifier.weight(1f),
+          label = { Text("New memory, e.g. You both love the park") },
+          singleLine = true,
+      )
+      Button(onClick = { onAddMemory(draft); draft = "" }, enabled = draft.isNotBlank()) { Text("Add") }
     }
   }
 }

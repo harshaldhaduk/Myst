@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * White ground, plum-grey ink, and three pastels that each mean something: blush for family,
- * periwinkle for medicine, lilac for places and Myst itself. Text on a pastel is always [Ink].
+ * periwinkle for medicine reminders, lilac for Myst itself. Text on a pastel is always [Ink].
  */
 object Myst {
   val White = Color(0xFFFFFFFF)

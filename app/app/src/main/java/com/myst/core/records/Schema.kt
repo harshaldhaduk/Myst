@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 // The one shared record schema (hub/BUILDING.md: one definition, change callers together).
-// Family-entered on the phone: people, places, medications, and the timeline of events.
+// Family-entered on the phone: people, medication reminders, and the timeline of events.
 
 /** Who agreed, who recorded it, and when. A person without consent is never stored. */
 data class Consent(
@@ -88,46 +88,10 @@ data class Person(
   }
 }
 
-private fun JSONArray?.strings(): List<String> =
-    this?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()
-
-private fun List<String>.toJsonArray(): JSONArray = JSONArray().also { a -> forEach { a.put(it) } }
-
 /**
- * A room the caregiver photographed (glasses photos, no people in them). Used to guide the wearer
- * ("let's go to the kitchen") and to check she got there.
- */
-data class Place(
-    val id: String,
-    val name: String,
-    /** Spoken guidance, e.g. "the crackers are in the pantry". */
-    val note: String,
-    val photoFiles: List<String>,
-    val createdAtMillis: Long,
-) {
-  fun toJson(): JSONObject =
-      JSONObject()
-          .put("id", id)
-          .put("name", name)
-          .put("note", note)
-          .put("photoFiles", photoFiles.toJsonArray())
-          .put("createdAtMillis", createdAtMillis)
-
-  companion object {
-    fun fromJson(o: JSONObject) =
-        Place(
-            id = o.getString("id"),
-            name = o.getString("name"),
-            note = o.optString("note"),
-            photoFiles = o.optJSONArray("photoFiles").strings(),
-            createdAtMillis = o.getLong("createdAtMillis"),
-        )
-  }
-}
-
-/**
- * Caregiver-entered medication (D6). Myst speaks [pillsPerDose] exactly as entered and never
- * advises on dosing. Bottle photos are glasses photos of this bottle, used as references.
+ * Caregiver-entered medication reminder (D6). Myst speaks [pillsPerDose] exactly as entered and
+ * never advises on dosing. Older records also held place ids and bottle photo paths; [fromJson]
+ * ignores those fields and [HouseholdStore] migrates the place name into [storageLocation].
  */
 data class Medication(
     val id: String,
@@ -142,15 +106,13 @@ data class Medication(
     val windowMinutes: Int,
     val withFood: Boolean,
     val withWater: Boolean,
-    /** Where food comes from when [withFood] (usually the kitchen). */
-    val foodPlaceId: String?,
-    /** Where the bottle is kept. */
-    val storedInPlaceId: String?,
-    /** Spoken detail, e.g. "in the cabinet above the sink". */
-    val storageNote: String,
-    val bottlePhotoFiles: List<String>,
+    /** Where it's kept, free text, e.g. "in the cabinet above the sink". */
+    val storageLocation: String,
     val createdAtMillis: Long,
 ) {
+  /** [storageLocation] as spoken after "It's": "in the cabinet above the sink", or null. */
+  fun spokenWhere(): String? = withPreposition(storageLocation)
+
   fun toJson(): JSONObject =
       JSONObject()
           .put("id", id)
@@ -161,10 +123,7 @@ data class Medication(
           .put("windowMinutes", windowMinutes)
           .put("withFood", withFood)
           .put("withWater", withWater)
-          .put("foodPlaceId", foodPlaceId ?: JSONObject.NULL)
-          .put("storedInPlaceId", storedInPlaceId ?: JSONObject.NULL)
-          .put("storageNote", storageNote)
-          .put("bottlePhotoFiles", bottlePhotoFiles.toJsonArray())
+          .put("storageLocation", storageLocation)
           .put("createdAtMillis", createdAtMillis)
 
   companion object {
@@ -178,18 +137,32 @@ data class Medication(
             windowMinutes = o.getInt("windowMinutes"),
             withFood = o.optBoolean("withFood"),
             withWater = o.optBoolean("withWater"),
-            foodPlaceId = o.optString("foodPlaceId").takeIf { !o.isNull("foodPlaceId") && it.isNotEmpty() },
-            storedInPlaceId =
-                o.optString("storedInPlaceId").takeIf { !o.isNull("storedInPlaceId") && it.isNotEmpty() },
-            storageNote = o.optString("storageNote"),
-            bottlePhotoFiles = o.optJSONArray("bottlePhotoFiles").strings(),
+            // Records saved before the Reminders page called this field "storageNote".
+            storageLocation = o.optString("storageLocation", o.optString("storageNote")),
             createdAtMillis = o.getLong("createdAtMillis"),
         )
   }
 }
 
+/** "cabinet above the sink" -> "in the cabinet above the sink"; "on the counter" stays as typed. */
+internal fun withPreposition(text: String): String? =
+    text.trim().takeIf(String::isNotEmpty)?.let { t ->
+      if (Regex("^(in|on|under|next to|beside|behind|by|at)\\b", RegexOption.IGNORE_CASE).containsMatchIn(t)) t
+      else "in the $t"
+    }
+
 /** Timeline entries. A dose is only ever "reported taken" (D6): a log is not proof. */
-enum class EventType { VISIT, DOSE_REPORTED_TAKEN, DOSE_BLOCKED_DOUBLE, DOSE_MISSED, ALERT }
+enum class EventType {
+  VISIT,
+  /** The dose-time reminder was spoken (or tried: no speech if the phone could not). */
+  DOSE_REMINDED,
+  /** A +10 or +20 minute re-reminder. */
+  DOSE_REREMINDED,
+  DOSE_REPORTED_TAKEN,
+  DOSE_BLOCKED_DOUBLE,
+  DOSE_MISSED,
+  ALERT,
+}
 
 data class Event(
     val id: String,
@@ -197,7 +170,7 @@ data class Event(
     val atMillis: Long,
     val personId: String? = null,
     val medicationId: String? = null,
-    /** Short detail, e.g. the bottle-check result. Never a transcript or a photo. */
+    /** Short detail, e.g. "marked on phone". Never a transcript or a photo. */
     val detail: String = "",
 ) {
   fun toJson(): JSONObject =

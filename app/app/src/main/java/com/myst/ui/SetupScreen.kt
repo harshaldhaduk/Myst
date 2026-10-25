@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -33,16 +32,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.myst.core.records.EventType
-import com.myst.core.records.Medication
 import com.myst.core.records.Person
 import com.myst.core.records.VisitMemory
-import com.myst.features.meds.DoseSchedule
 import com.myst.ui.theme.Myst
 
 private enum class SetupPart(val title: String, val tint: Color) {
   FAMILY("Family", Myst.Blush),
-  MEDICINE("Medicine", Myst.Periwinkle),
-  PLACES("Places", Myst.Lilac),
+  REMINDERS("Reminders", Myst.Periwinkle),
 }
 
 @Composable
@@ -58,7 +54,7 @@ fun SetupScreen(
     Column {
       Text("Setup", style = MaterialTheme.typography.displaySmall)
       Text(
-          "The people and medicines Myst helps with.",
+          "The people and medicine reminders Myst helps with.",
           style = MaterialTheme.typography.bodyMedium,
           color = Myst.InkSoft,
       )
@@ -83,18 +79,7 @@ fun SetupScreen(
     }
     when (part) {
       SetupPart.FAMILY -> FamilyPart(viewModel, ui, connected, onCapture)
-      SetupPart.MEDICINE -> MedicinePart(viewModel, ui, connected, onCapture)
-      SetupPart.PLACES -> {
-        GlassesPhotoCard(
-            ui,
-            connected,
-            "Room photos help Myst guide her to the right place. Nobody should be in view.",
-            Myst.LilacWash,
-            onCapture,
-            viewModel::discardPhoto,
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { PlacesTab(viewModel, ui) }
-      }
+      SetupPart.REMINDERS -> RemindersPart(viewModel, ui)
     }
   }
 }
@@ -293,207 +278,5 @@ private fun PersonCard(
         }
       }
     }
-  }
-}
-
-// MARK: - Medicine
-
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-@Composable
-private fun MedicinePart(viewModel: EnrollViewModel, ui: EnrollUiState, connected: Boolean, onCapture: () -> Unit) {
-  var editing by remember { mutableStateOf<Medication?>(null) }
-  var formOpen by rememberSaveable { mutableStateOf(false) }
-
-  if (!formOpen) {
-    PillButton(
-        "Add medicine",
-        {
-          editing = null
-          formOpen = true
-        },
-        Modifier.fillMaxWidth(),
-        color = Myst.Periwinkle,
-    )
-  }
-  AnimatedVisibility(formOpen) {
-    MedicineForm(
-        viewModel,
-        ui,
-        connected,
-        onCapture,
-        editing,
-        onDone = {
-          formOpen = false
-          editing = null
-        },
-    )
-  }
-
-  if (ui.medications.isEmpty() && !formOpen) {
-    Panel(tint = Myst.PeriwinkleWash) {
-      Text("No medicines yet", style = MaterialTheme.typography.titleLarge)
-      Text(
-          "Add each one with its time and a photo of the bottle. Myst reminds her and says only what you enter.",
-          style = MaterialTheme.typography.bodyMedium,
-      )
-    }
-  }
-
-  ui.medications.sortedBy { it.doseMinuteOfDay }.forEach { med ->
-    val food = ui.places.firstOrNull { it.id == med.foodPlaceId }?.name
-    val stored = ui.places.firstOrNull { it.id == med.storedInPlaceId }?.name
-    val dose = DoseSchedule.currentDoseTime(med, System.currentTimeMillis())
-    val taken = DoseSchedule.reportedTaken(med, dose, ui.events)
-    Panel(tint = Myst.PeriwinkleWash) {
-      Row(verticalAlignment = Alignment.Top) {
-        Column(Modifier.weight(1f)) {
-          Text(med.labelName, style = MaterialTheme.typography.titleLarge)
-          if (med.plainDescription.isNotBlank()) {
-            Text(med.plainDescription, style = MaterialTheme.typography.bodyMedium, color = Myst.InkSoft)
-          }
-        }
-        Text(DoseSchedule.formatTime(med.doseMinuteOfDay), style = MaterialTheme.typography.headlineSmall)
-      }
-      FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Tag("${med.pillsPerDose} pill${if (med.pillsPerDose == 1) "" else "s"}", Myst.White)
-        Tag("within ${med.windowMinutes} min", Myst.White)
-        if (med.withWater) Tag("with water", Myst.Periwinkle)
-        if (med.withFood) Tag("with food" + (food?.let { " · ${it.lowercase()}" } ?: ""), Myst.Blush)
-        stored?.let { Tag("kept in the ${it.lowercase()}", Myst.Lilac) }
-      }
-      if (med.storageNote.isNotBlank()) {
-        Text(med.storageNote, style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
-      }
-      PhotoStrip(med.bottlePhotoFiles, viewModel)
-      Text(
-          taken?.let { "Reported taken at ${DoseSchedule.formatTimeOfDay(it.atMillis)}" }
-              ?: "Dose at ${DoseSchedule.formatTimeOfDay(dose)} · not reported taken",
-          style = MaterialTheme.typography.labelLarge,
-      )
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        PillButton("Mark as taken", { viewModel.markTaken(med) }, color = Myst.White, enabled = taken == null)
-        QuietButton("Edit", {
-          editing = med
-          formOpen = true
-        }, color = Myst.Ink)
-        QuietButton("Delete", { viewModel.deleteMedication(med) })
-      }
-    }
-  }
-}
-
-@Composable
-private fun MedicineForm(
-    viewModel: EnrollViewModel,
-    ui: EnrollUiState,
-    connected: Boolean,
-    onCapture: () -> Unit,
-    editing: Medication?,
-    onDone: () -> Unit,
-) {
-  // Keyed on the medication being edited, so opening another one reloads the fields.
-  val key = editing?.id ?: "new"
-  var labelName by remember(key) { mutableStateOf(editing?.labelName ?: "") }
-  var description by remember(key) { mutableStateOf(editing?.plainDescription ?: "") }
-  var pills by remember(key) { mutableStateOf((editing?.pillsPerDose ?: 1).toString()) }
-  val dm = editing?.doseMinuteOfDay ?: 8 * 60
-  var hour by remember(key) { mutableStateOf((if (dm / 60 % 12 == 0) 12 else dm / 60 % 12).toString()) }
-  var minuteText by remember(key) { mutableStateOf("%02d".format(dm % 60)) }
-  var pm by remember(key) { mutableStateOf(dm / 60 >= 12) }
-  var window by remember(key) { mutableStateOf((editing?.windowMinutes ?: 60).toString()) }
-  var withFood by remember(key) { mutableStateOf(editing?.withFood ?: false) }
-  var withWater by remember(key) { mutableStateOf(editing?.withWater ?: true) }
-  var foodPlaceId by remember(key) { mutableStateOf(editing?.foodPlaceId) }
-  var storedInId by remember(key) { mutableStateOf(editing?.storedInPlaceId) }
-  var storageNote by remember(key) { mutableStateOf(editing?.storageNote ?: "") }
-
-  val minute = toMinuteOfDay(hour, minuteText, pm)
-  val pillCount = pills.toIntOrNull()
-  val windowMin = window.toIntOrNull()
-  val valid = labelName.isNotBlank() && minute != null && (pillCount ?: 0) >= 1 && (windowMin ?: 0) >= 1
-
-  Panel(tint = Myst.PeriwinkleWash) {
-    Text(if (editing == null) "Add medicine" else "Edit ${editing.labelName}", style = MaterialTheme.typography.titleLarge)
-    GlassesPhotoCard(
-        ui,
-        connected,
-        "Hold the bottle close with the label facing the glasses. Add two or three photos over time.",
-        Myst.White,
-        onCapture,
-        viewModel::discardPhoto,
-        accent = Myst.Periwinkle,
-    )
-    Field(labelName, { labelName = it }, "Name on the label, e.g. Lisinopril 10 mg")
-    Field(description, { description = it }, "How she'd describe it, e.g. the small white bottle")
-
-    SmallLabel("When")
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      Field(hour, { hour = it.filter(Char::isDigit).take(2) }, "Hour", Modifier.weight(1f), number = true)
-      Field(minuteText, { minuteText = it.filter(Char::isDigit).take(2) }, "Min", Modifier.weight(1f), number = true)
-      Choice("AM", !pm) { pm = false }
-      Choice("PM", pm) { pm = true }
-    }
-    if (minute == null) Text("Use an hour from 1 to 12 and minutes from 00 to 59.", color = Myst.Rose, style = MaterialTheme.typography.bodySmall)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      Field(pills, { pills = it.filter(Char::isDigit) }, "Pills each time", Modifier.weight(1f), number = true)
-      Field(window, { window = it.filter(Char::isDigit) }, "Window (min)", Modifier.weight(1f), number = true)
-    }
-    Text(
-        "Myst says the pill count exactly as you enter it and never gives dosing advice.",
-        style = MaterialTheme.typography.bodySmall,
-        color = Myst.InkSoft,
-    )
-
-    SwitchRow("Take with water", withWater) { withWater = it }
-    SwitchRow("Take with food", withFood) { withFood = it }
-    if (withFood) {
-      SmallLabel("Where she gets food")
-      PlacePicker(ui.places, foodPlaceId, defaultName = "Kitchen") { foodPlaceId = it }
-    }
-    SmallLabel("Where the bottle is kept")
-    PlacePicker(ui.places, storedInId, defaultName = null) { storedInId = it }
-    Field(storageNote, { storageNote = it }, "Exact spot, e.g. cabinet above the sink")
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      PillButton(
-          if (editing == null) "Save medicine" else "Save changes",
-          {
-            viewModel.saveMedication(
-                Medication(
-                    id = editing?.id ?: "",
-                    labelName = labelName.trim(),
-                    plainDescription = description.trim(),
-                    pillsPerDose = pillCount ?: 1,
-                    doseMinuteOfDay = minute ?: 0,
-                    windowMinutes = windowMin ?: 60,
-                    withFood = withFood,
-                    withWater = withWater,
-                    foodPlaceId = if (withFood) foodPlaceId else null,
-                    storedInPlaceId = storedInId,
-                    storageNote = storageNote.trim(),
-                    bottlePhotoFiles = emptyList(),
-                    createdAtMillis = 0,
-                ),
-                attachPhoto = true,
-            )
-            onDone()
-          },
-          color = Myst.Periwinkle,
-          enabled = valid,
-      )
-      QuietButton("Cancel", onDone)
-    }
-  }
-}
-
-@Composable
-private fun Choice(text: String, selected: Boolean, onClick: () -> Unit) {
-  Box(
-      Modifier.clip(CircleShape)
-          .background(if (selected) Myst.Periwinkle else Myst.White)
-          .selectable(selected, role = Role.RadioButton, onClick = onClick)
-          .padding(horizontal = 14.dp, vertical = 12.dp),
-  ) {
-    Text(text, style = MaterialTheme.typography.labelLarge)
   }
 }

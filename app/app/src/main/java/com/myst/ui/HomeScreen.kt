@@ -45,7 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myst.core.Capability
 import com.myst.core.Label
 import com.myst.features.VoiceCommands
-import com.myst.features.meds.BottleCheck
+import com.myst.features.meds.DoseReminders
 import com.myst.features.meds.DoseSchedule
 import com.myst.glasses.GlassesState
 import com.myst.glasses.GlassesTapTrigger
@@ -60,14 +60,13 @@ fun HomeScreen(
     mystOn: Boolean,
     onMystOn: (Boolean) -> Unit,
     onWhoIsThis: () -> Unit,
-    onWhatIsThis: () -> Unit,
     onRegister: () -> Unit,
     onUnregister: () -> Unit,
     onOpenGlassesUpdate: () -> Unit,
     camera: Capability,
 ) {
   val connected = glasses is GlassesState.Connected
-  val busy = ui.identifying || ui.capturing || ui.checkingBottle
+  val busy = ui.identifying || ui.capturing
   val faceMatch = viewModel.museIdentity != null
   val museKeySet by viewModel.museKeySet.collectAsStateWithLifecycle()
 
@@ -94,7 +93,7 @@ fun HomeScreen(
       )
       Text(
           if (mystOn) {
-            "Say \"Who is this?\" or \"What is this?\", or tap the glasses."
+            "Say \"Who is this?\" or tap the glasses."
           } else {
             "One switch for voice and glasses tap."
           },
@@ -144,38 +143,22 @@ fun HomeScreen(
       }
     }
 
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-      PillButton(
-          if (ui.identifying) "Looking…" else "Who is this?",
-          onWhoIsThis,
-          Modifier.weight(1f),
-          color = Myst.Blush,
-          enabled = connected && !busy,
-      )
-      PillButton(
-          if (ui.checkingBottle) "Looking…" else "What is this?",
-          onWhatIsThis,
-          Modifier.weight(1f),
-          color = Myst.Periwinkle,
-          enabled = connected && !busy && ui.medications.isNotEmpty(),
-      )
-    }
-
     LastSaidCard(ui.lastSaid)
 
     GlassesCard(ui, glasses, onRegister, onUnregister, onOpenGlassesUpdate)
 
-    if (ui.medications.isNotEmpty() && !viewModel.exactAlarmsAllowed()) {
-      Panel(tint = Myst.BlushWash, radius = 22.dp, padding = 16.dp) {
-        Text("Reminders may run a few minutes late", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Turn on Settings > Apps > Myst > Alarms & reminders so dose reminders arrive on time.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-      }
-    }
+    if (ui.medications.isNotEmpty() && !ui.exactAlarms) ExactAlarmWarning()
 
     AboutCard(viewModel, camera)
+
+    // Backup for when voice and tap both fail: same path (earcon, glasses photo, Muse), kept quiet.
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+      QuietButton(
+          if (ui.identifying) "Looking…" else "Backup: Who is this?",
+          onWhoIsThis,
+          enabled = connected && !busy,
+      )
+    }
   }
 }
 
@@ -329,9 +312,10 @@ private fun AboutCard(viewModel: EnrollViewModel, camera: Capability) {
         CapabilityRow(viewModel.speaker.capability)
         CapabilityRow(VoiceCommands.capability)
         CapabilityRow(GlassesTapTrigger.capability)
-        CapabilityRow(BottleCheck.capability)
+        CapabilityRow(DoseReminders.capability)
+        CapabilityRow(DoseReminders.alertCapability)
         Text(
-            "Family records, memories and photos stay in Myst's private storage on this phone. " +
+            "Family records, memories, photos and reminders stay in Myst's private storage on this phone. " +
                 "They are not backed up.",
             style = MaterialTheme.typography.bodySmall,
             color = Myst.InkSoft,

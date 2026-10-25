@@ -69,7 +69,6 @@ class MainActivity : ComponentActivity() {
           onWhoIsThis = { viewModel.whoIsThis(::requestWearablesPermission) },
           onMystOn = { on -> viewModel.setMystOn(on, ::requestWearablesPermission) },
           onOpenGlassesUpdate = { viewModel.openGlassesUpdate(this) },
-          onCheckBottle = { viewModel.checkBottle(::requestWearablesPermission) },
       )
     }
   }

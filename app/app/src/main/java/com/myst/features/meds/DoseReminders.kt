@@ -13,6 +13,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.myst.MainActivity
 import com.myst.R
+import com.myst.core.Capability
+import com.myst.core.Label
 import com.myst.core.guard.ResponseGuard
 import com.myst.core.records.Event
 import com.myst.core.records.EventType
@@ -37,6 +39,22 @@ object DoseReminders {
   private const val KEY_FAST = "fastDemo"
   const val CHANNEL_REMINDERS = "dose_reminders"
   const val CHANNEL_ALERTS = "caregiver_alerts"
+
+  val capability =
+      Capability(
+          "Medication reminders",
+          Label.LIVE,
+          "Android alarms on this phone, spoken with the OS voice; again at +10 and +20 min (not a Meta API)",
+          blockedBy = "D5 reading: are OS alarms acceptable?",
+      )
+
+  val alertCapability =
+      Capability(
+          "Caregiver alert",
+          Label.MOCK,
+          "A missed dose shows as a notification on this phone; WhatsApp sending is a mock",
+          blockedBy = "Q13 (WhatsApp needs a server-held token)",
+      )
 
   fun fastDemo(context: Context): Boolean =
       context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_FAST, false)
@@ -104,30 +122,8 @@ object DoseReminders {
       onDone()
       return
     }
-    val places = store.places()
-    val kept = places.firstOrNull { it.id == med.storedInPlaceId }?.name?.lowercase()
-    val food = places.firstOrNull { it.id == med.foodPlaceId }?.name?.lowercase()
-    // "in the bathroom, in the cabinet above the sink"
-    val spot =
-        med.storageNote.trim().takeIf(String::isNotEmpty)?.let { note ->
-          if (Regex("^(in|on|under|next to|beside|behind|by)\\b", RegexOption.IGNORE_CASE).containsMatchIn(note)) note
-          else "in the $note"
-        }
-    val where = listOfNotNull(kept?.let { "in the $it" }, spot).joinToString(", ")
     val name = med.labelName
-    val lines =
-        when (stage) {
-          DoseStage.REMIND ->
-              listOfNotNull(
-                  "It's time for your ${DoseSchedule.partOfDay(med.doseMinuteOfDay)} $name." +
-                      (if (where.isNotBlank()) " It's $where." else ""),
-                  if (med.withFood) "This one goes with food, so let's go to the ${food ?: "kitchen"} first." else null,
-              )
-          DoseStage.REREMIND_1, DoseStage.REREMIND_2 ->
-              listOf("Just a reminder, your $name is ready for you" + (if (where.isNotBlank()) ", $where." else "."))
-          DoseStage.WINDOW_CLOSED -> emptyList()
-        }
-
+    val lines = DoseSchedule.spokenLines(med, stage)
     if (stage == DoseStage.WINDOW_CLOSED) {
       val time = DoseSchedule.formatTime(med.doseMinuteOfDay)
       store.log(Event(UUID.randomUUID().toString(), EventType.DOSE_MISSED, System.currentTimeMillis(), medicationId = med.id, detail = "not reported taken by window close ($time)"))
@@ -137,6 +133,14 @@ object DoseReminders {
       return
     }
 
+    store.logReminder(
+        Event(
+            UUID.randomUUID().toString(),
+            if (stage == DoseStage.REMIND) EventType.DOSE_REMINDED else EventType.DOSE_REREMINDED,
+            System.currentTimeMillis(),
+            medicationId = med.id,
+        ),
+    )
     notify(context, CHANNEL_REMINDERS, "Time for $name", lines.joinToString(" "), med.id.hashCode())
     val people = PeopleStore(context).all()
     val guarded = lines.mapNotNull { (ResponseGuard.check(it, null, people) as? ResponseGuard.Decision.Pass)?.line?.text }

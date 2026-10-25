@@ -57,13 +57,26 @@ object DoseSchedule {
             it.atMillis >= doseTime - 12 * 60 * 60_000L
       }
 
-  fun partOfDay(minuteOfDay: Int): String =
-      when (minuteOfDay / 60) {
-        in 4..11 -> "morning"
-        in 12..16 -> "afternoon"
-        in 17..20 -> "evening"
-        else -> "night-time"
-      }
+  /**
+   * What Myst says for a stage, one short line each so each passes the guard on its own. Every
+   * fact is the caregiver's (D6): name, where it's kept, the water and food rule. No dosing advice.
+   */
+  fun spokenLines(med: Medication, stage: DoseStage): List<String> {
+    val name = med.labelName
+    val where = med.spokenWhere()
+    return when (stage) {
+      DoseStage.REMIND ->
+          listOfNotNull(
+              "It's time for your $name.",
+              where?.let { "It's $it." },
+              if (med.withWater) "Take it with a glass of water." else null,
+              if (med.withFood) "Have something to eat first." else null,
+          )
+      DoseStage.REREMIND_1, DoseStage.REREMIND_2 ->
+          listOf("Just a reminder, your $name is ready for you" + (where?.let { ", $it." } ?: "."))
+      DoseStage.WINDOW_CLOSED -> emptyList()
+    }
+  }
 
   /** "8:00 AM" */
   fun formatTime(minuteOfDay: Int): String {

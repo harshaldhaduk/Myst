@@ -10,62 +10,78 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * Places, medications and timeline events, in app-private noBackupFilesDir like [PeopleStore].
- * Photos are reference images taken with the glasses; deleting a record deletes its photos.
+ * Medication reminders and timeline events, in app-private noBackupFilesDir like [PeopleStore].
+ * No photos: the Places tab and the bottle check were removed (tag
+ * archive/bottle-check-places-home-buttons), and [migrateLegacy] cleans up what they left behind.
  */
 class HouseholdStore(context: Context) {
   private val dir = File(context.noBackupFilesDir, "household").apply { mkdirs() }
-  private val photos = File(dir, "photos").apply { mkdirs() }
-
-  // MARK: - Places
-
-  @Synchronized fun places(): List<Place> = read("places.json", Place::fromJson)
-
-  @Synchronized
-  fun savePlace(id: String?, name: String, note: String, newPhotos: List<ByteArray>): Place {
-    val existing = places().firstOrNull { it.id == id }
-    val placeId = existing?.id ?: UUID.randomUUID().toString()
-    val place =
-        Place(
-            id = placeId,
-            name = name.trim(),
-            note = note.trim(),
-            photoFiles = (existing?.photoFiles ?: emptyList()) + writePhotos(placeId, newPhotos),
-            createdAtMillis = existing?.createdAtMillis ?: System.currentTimeMillis(),
-        )
-    write("places.json", places().filterNot { it.id == placeId } + place) { it.toJson() }
-    return place
-  }
-
-  @Synchronized
-  fun deletePlace(id: String) {
-    places().firstOrNull { it.id == id }?.photoFiles?.forEach { File(photos, it).delete() }
-    write("places.json", places().filterNot { it.id == id }) { it.toJson() }
-  }
 
   // MARK: - Medications
 
-  @Synchronized fun medications(): List<Medication> = read("medications.json", Medication::fromJson)
-
-  /** [draft]'s id is kept when editing; pass newPhotos to add bottle reference photos. */
   @Synchronized
-  fun saveMedication(draft: Medication, newPhotos: List<ByteArray>): Medication {
+  fun medications(): List<Medication> {
+    migrateLegacy()
+    return read("medications.json", Medication::fromJson)
+  }
+
+  /** [draft]'s id is kept when editing; a blank id makes a new reminder. */
+  @Synchronized
+  fun saveMedication(draft: Medication): Medication {
     val existing = medications().firstOrNull { it.id == draft.id }
     val id = existing?.id ?: draft.id.ifBlank { UUID.randomUUID().toString() }
-    val med =
-        draft.copy(
-            id = id,
-            bottlePhotoFiles = (existing?.bottlePhotoFiles ?: emptyList()) + writePhotos(id, newPhotos),
-            createdAtMillis = existing?.createdAtMillis ?: System.currentTimeMillis(),
-        )
+    val med = draft.copy(id = id, createdAtMillis = existing?.createdAtMillis ?: System.currentTimeMillis())
     write("medications.json", medications().filterNot { it.id == id } + med) { it.toJson() }
     return med
   }
 
   @Synchronized
   fun deleteMedication(id: String) {
-    medications().firstOrNull { it.id == id }?.bottlePhotoFiles?.forEach { File(photos, it).delete() }
     write("medications.json", medications().filterNot { it.id == id }) { it.toJson() }
+  }
+
+  /**
+   * Data from before the Reminders page: places.json and a photos folder of room and bottle
+   * reference photos. A medication's place name is carried into its free-text location
+   * ("in the bathroom, in the cabinet above the sink"), then places and photos are deleted.
+   * Best effort: if anything fails, nothing is deleted and it runs again on the next read.
+   * Family, memories and visits live elsewhere and are not touched.
+   */
+  private fun migrateLegacy() {
+    val placesFile = File(dir, "places.json")
+    val photos = File(dir, "photos")
+    if (!placesFile.exists() && !photos.exists()) return
+    try {
+      val places = readJsonArray(placesFile)
+      val placeNames =
+          (0 until places.length()).associate { i ->
+            places.getJSONObject(i).let { it.optString("id") to it.optString("name").trim() }
+          }
+      val medsFile = File(dir, "medications.json")
+      if (medsFile.exists()) {
+        val raw = readJsonArray(medsFile)
+        val meds =
+            (0 until raw.length()).map { i ->
+              val o = raw.getJSONObject(i)
+              val med = Medication.fromJson(o)
+              val room = placeNames[o.optString("storedInPlaceId")]?.takeIf(String::isNotEmpty)
+              if (room == null || o.has("storageLocation")) med
+              else {
+                med.copy(
+                    storageLocation =
+                        listOfNotNull("in the ${room.lowercase()}", withPreposition(med.storageLocation)).joinToString(", "),
+                )
+              }
+            }
+        write("medications.json", meds) { it.toJson() }
+      }
+      photos.deleteRecursively()
+      placesFile.delete()
+      File(dir, "places.json.corrupt").delete()
+      Log.i("Myst:Store", "removed places and reference photos from an older version")
+    } catch (e: JSONException) {
+      Log.w("Myst:Store", "legacy cleanup skipped: ${e.javaClass.simpleName}")
+    }
   }
 
   // MARK: - Events
@@ -109,22 +125,30 @@ class HouseholdStore(context: Context) {
     write("events.json", events().filterNot { it.type == EventType.VISIT && it.personId == personId }) { it.toJson() }
   }
 
-  // MARK: - Photos
-
-  fun photo(file: String): File? = File(photos, file).takeIf { it.exists() }
-
-  /** Demo reset: remove every place, medication, event and their photos. */
+  /** Demo reset: remove every medication and event. */
   @Synchronized
   fun clear() {
     dir.deleteRecursively()
     dir.mkdirs()
-    photos.mkdirs()
   }
 
-  private fun writePhotos(ownerId: String, jpegs: List<ByteArray>): List<String> =
-      jpegs.map { bytes ->
-        "$ownerId-${UUID.randomUUID()}.jpg".also { File(photos, it).writeBytes(bytes) }
-      }
+  /**
+   * Logs a reminder that was spoken. Reminder entries older than [REMINDER_KEEP_DAYS] are dropped
+   * in the same write, so the timeline cannot grow without bound.
+   */
+  @Synchronized
+  fun logReminder(event: Event) {
+    val cutoff = event.atMillis - REMINDER_KEEP_DAYS * 24 * 60 * 60_000L
+    val kept =
+        events().filterNot {
+          (it.type == EventType.DOSE_REMINDED || it.type == EventType.DOSE_REREMINDED) && it.atMillis < cutoff
+        }
+    write("events.json", kept + event) { it.toJson() }
+  }
+
+  private companion object {
+    const val REMINDER_KEEP_DAYS = 30
+  }
 
   private fun <T> read(name: String, parse: (JSONObject) -> T): List<T> =
       readJsonArray(File(dir, name)).let { a -> (0 until a.length()).map { parse(a.getJSONObject(it)) } }

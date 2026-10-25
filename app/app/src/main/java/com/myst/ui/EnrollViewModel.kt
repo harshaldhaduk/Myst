@@ -11,7 +11,6 @@ import com.myst.core.records.HouseholdStore
 import com.myst.core.records.Medication
 import com.myst.core.records.Memory
 import com.myst.core.records.PeopleStore
-import com.myst.core.records.Place
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
 import com.myst.BuildConfig
@@ -19,10 +18,8 @@ import com.myst.core.guard.ResponseGuard
 import com.myst.features.faces.FamiliarFaces
 import com.myst.core.records.Event
 import com.myst.core.records.EventType
-import com.myst.features.meds.BottleCheck
 import com.myst.features.meds.DoseReminders
 import com.myst.features.meds.DoseSchedule
-import com.myst.features.meds.MedicineSummary
 import java.util.UUID
 import com.myst.features.faces.MuseIdentity
 import com.myst.muse.MuseClient
@@ -58,11 +55,10 @@ data class EnrollUiState(
     val lastWhisper: WhisperResult? = null,
     /** The glasses refused with DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED; offer the update screen. */
     val needsGlassesUpdate: Boolean = false,
-    val places: List<Place> = emptyList(),
     val medications: List<Medication> = emptyList(),
     val events: List<Event> = emptyList(),
-    val checkingBottle: Boolean = false,
-    val lastBottle: BottleCheckView? = null,
+    /** Android's "Alarms & reminders" access; without it reminders can run a few minutes late. */
+    val exactAlarms: Boolean = true,
     /** The most recent thing Myst said (or chose not to say), for the Home screen. */
     val lastSaid: LastSaid? = null,
     /** Why voice listening isn't running while Myst is on, in plain words; null when it's fine. */
@@ -71,15 +67,6 @@ data class EnrollUiState(
 
 /** [quiet] means Myst stayed silent or was unsure; [note] explains a missing photo, if any. */
 data class LastSaid(val text: String, val atMillis: Long, val quiet: Boolean, val note: String? = null)
-
-/** What the bottle test shows: both kinds of evidence and what was spoken. */
-data class BottleCheckView(
-    val spoken: String?,
-    val photoMatch: String,
-    val labelRead: String,
-    val detail: String,
-    val captureNote: String?,
-)
 
 class EnrollViewModel(application: Application) : AndroidViewModel(application) {
   private companion object {
@@ -138,12 +125,22 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     viewModelScope.launch(Dispatchers.IO) { _museKeySet.value = museKeys.hasKey() }
     // Fast demo timing has no switch any more; make sure an old setting cannot stay on.
     if (DoseReminders.fastDemo(application)) DoseReminders.setFastDemo(application, false)
+    _ui.update { it.copy(exactAlarms = DoseReminders.canScheduleExact(application)) }
     viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
   }
 
   // MARK: - Dose reminders
 
-  fun exactAlarmsAllowed(): Boolean = DoseReminders.canScheduleExact(getApplication())
+  /**
+   * Called when the app comes back to the front, e.g. from the exact-alarm settings screen.
+   * Newly granted access re-plans the alarms so they become exact.
+   */
+  fun refreshExactAlarms() {
+    val allowed = DoseReminders.canScheduleExact(getApplication())
+    val wasAllowed = _ui.value.exactAlarms
+    _ui.update { it.copy(exactAlarms = allowed) }
+    if (allowed && !wasAllowed) viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
+  }
 
   /** R11/R12: log "reported taken" (D6), unless this dose was already reported. */
   fun markTaken(med: Medication) {
@@ -152,10 +149,17 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
       val already =
           withContext(Dispatchers.IO) {
             val dose = DoseSchedule.currentDoseTime(med, now)
-            DoseSchedule.reportedTaken(med, dose, household.events())
-                ?: household.log(
-                    Event(UUID.randomUUID().toString(), EventType.DOSE_REPORTED_TAKEN, now, medicationId = med.id, detail = "marked on phone"),
-                ).let { null }
+            val earlier = DoseSchedule.reportedTaken(med, dose, household.events())
+            household.log(
+                Event(
+                    UUID.randomUUID().toString(),
+                    if (earlier == null) EventType.DOSE_REPORTED_TAKEN else EventType.DOSE_BLOCKED_DOUBLE,
+                    now,
+                    medicationId = med.id,
+                    detail = if (earlier == null) "marked on phone" else "second report on phone, not logged as taken",
+                ),
+            )
+            earlier
           }
       _ui.update {
         it.copy(
@@ -168,49 +172,20 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     }
   }
 
-  // MARK: - Places and medications (Lane 3 setup)
+  // MARK: - Medication reminders (Lane 3 setup)
 
-  /** The pending glasses photo, if any, becomes a reference photo for [savePlace]/[saveMedication]. */
-  private fun takePendingPhoto(attach: Boolean): List<ByteArray> =
-      _ui.value.pending?.takeIf { attach }?.photo?.jpeg?.let { listOf(it) } ?: emptyList()
-
-  fun savePlace(id: String?, name: String, note: String, attachPhoto: Boolean) {
-    if (name.isBlank()) return
-    val photos = takePendingPhoto(attachPhoto)
-    viewModelScope.launch {
-      val place = withContext(Dispatchers.IO) { household.savePlace(id, name, note, photos) }
-      _ui.update {
-        it.copy(
-            pending = if (photos.isNotEmpty()) null else it.pending,
-            message = "Saved ${place.name} (${place.photoFiles.size} photo${if (place.photoFiles.size == 1) "" else "s"}).",
-        )
-      }
-      refreshHousehold()
-    }
-  }
-
-  fun deletePlace(place: Place) {
-    viewModelScope.launch {
-      withContext(Dispatchers.IO) { household.deletePlace(place.id) }
-      _ui.update { it.copy(message = "Removed ${place.name} and its photos.") }
-      refreshHousehold()
-    }
-  }
-
-  fun saveMedication(draft: Medication, attachPhoto: Boolean) {
+  fun saveMedication(draft: Medication) {
     if (draft.labelName.isBlank() || draft.pillsPerDose < 1) return
-    val photos = takePendingPhoto(attachPhoto)
     viewModelScope.launch {
       val med =
           withContext(Dispatchers.IO) {
-            household.saveMedication(draft, photos).also { DoseReminders.rescheduleAll(getApplication()) }
+            // Cancel first: a shorter window can drop a stage whose old alarm would still fire.
+            household.saveMedication(draft).also {
+              DoseReminders.cancel(getApplication(), it.id)
+              DoseReminders.rescheduleAll(getApplication())
+            }
           }
-      _ui.update {
-        it.copy(
-            pending = if (photos.isNotEmpty()) null else it.pending,
-            message = "Saved ${med.labelName} (${med.bottlePhotoFiles.size} bottle photo${if (med.bottlePhotoFiles.size == 1) "" else "s"}).",
-        )
-      }
+      _ui.update { it.copy(message = "Saved the reminder for ${med.labelName}.") }
       refreshHousehold()
     }
   }
@@ -221,90 +196,15 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
         DoseReminders.cancel(getApplication(), med.id)
         household.deleteMedication(med.id)
       }
-      _ui.update { it.copy(message = "Removed ${med.labelName} and its photos.") }
+      _ui.update { it.copy(message = "Removed the reminder for ${med.labelName}.") }
       refreshHousehold()
     }
   }
 
-  fun householdPhoto(file: String): ByteArray? = household.photo(file)?.readBytes()
-
-  private val bottleCheck = BottleCheck(muse)
-
-  /** Test tool for D14: one glasses photo -> photo match + label read -> spoken verdict. */
-  fun checkBottle(requestPermission: suspend (Permission) -> PermissionStatus) {
-    if (_ui.value.checkingBottle || _ui.value.capturing) return
-    _ui.update { it.copy(checkingBottle = true) }
-    speaker.earcon()
-    viewModelScope.launch {
-      val capture = gateway.capturePhoto(requestPermission)
-      val view =
-          if (capture !is CaptureResult.Ok) {
-            BottleCheckView(null, "-", "-", "", captureNote = "No photo: ${describe(capture)}")
-          } else {
-            val meds =
-                withContext(Dispatchers.IO) {
-                  _ui.value.medications.map { m ->
-                    m to m.bottlePhotoFiles.mapNotNull { household.photo(it)?.readBytes() }
-                  }
-                }
-            val r = bottleCheck.identify(capture.photo, meds)
-            val lines =
-                when (val v = r.verdict) {
-                  // Name, schedule and food/water rule, all from the caregiver's records (D6).
-                  is BottleCheck.Verdict.Identified ->
-                      MedicineSummary.lines(
-                          _ui.value.medications.filter { MedicineSummary.sameProduct(it, v.medication) },
-                      )
-                  BottleCheck.Verdict.Unsure ->
-                      listOf("I can't tell which medicine that is. Please turn it so I can see the label.")
-                }
-            // Each line passes the guard on its own; a blocked line is dropped, never reworded.
-            val spoken =
-                lines
-                    .mapNotNull { line ->
-                      (ResponseGuard.check(line, null, _ui.value.people) as? ResponseGuard.Decision.Pass)
-                          ?.line?.also(speaker::say)?.text
-                    }
-                    .joinToString(" ")
-                    .ifEmpty { null }
-            BottleCheckView(
-                spoken = spoken,
-                photoMatch =
-                    if (!r.bottleVisible) "no medicine package seen"
-                    else r.photoMatch?.let { "${it.first.labelName} (${"%.2f".format(it.second)})" } ?: "no match",
-                labelRead =
-                    r.labelText?.let { "\"$it\"" + (r.labelMatch?.let { m -> " -> ${m.labelName}" } ?: " -> not one of hers") }
-                        ?: "unreadable",
-                detail = r.detail,
-                captureNote = null,
-            )
-          }
-      val said =
-          LastSaid(
-              text = view.spoken ?: "I couldn't tell which medicine that is.",
-              atMillis = System.currentTimeMillis(),
-              quiet = view.spoken == null,
-              note = view.captureNote,
-          )
-      _ui.update { it.copy(checkingBottle = false, lastBottle = view, lastSaid = said) }
-    }
-  }
-
-  private fun describe(capture: CaptureResult): String =
-      when (capture) {
-        is CaptureResult.Ok -> "ok"
-        CaptureResult.Paused -> "glasses paused"
-        CaptureResult.CapabilityDenied -> "camera denied for this session"
-        CaptureResult.PermissionDenied -> "no camera permission"
-        CaptureResult.GlassesUpdateRequired -> "glasses need a software update"
-        is CaptureResult.Failed -> capture.reason
-      }
-
   private fun refreshHousehold() {
     viewModelScope.launch {
-      val (places, meds, events) =
-          withContext(Dispatchers.IO) { Triple(household.places(), household.medications(), household.events()) }
-      _ui.update { it.copy(places = places, medications = meds, events = events) }
+      val (meds, events) = withContext(Dispatchers.IO) { household.medications() to household.events() }
+      _ui.update { it.copy(medications = meds, events = events) }
     }
   }
 
@@ -326,13 +226,12 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
           gateway.startListening(requestPermission) { text ->
             when (VoiceCommands.match(text)) {
               VoiceCommands.Command.WHO_IS_THIS -> whoIsThis(requestPermission)
-              VoiceCommands.Command.WHAT_IS_THIS -> checkBottle(requestPermission)
               null -> Unit
             }
           }
       _ui.update {
         it.copy(
-            message = if (failure == null) "Listening for \"Who is this?\" and \"What is this?\"" else null,
+            message = if (failure == null) "Listening for \"Who is this?\"" else null,
             voiceProblem = failure?.let(::plainVoiceProblem),
             needsGlassesUpdate = failure?.contains("update", ignoreCase = true) == true,
         )
@@ -364,9 +263,8 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
           .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
   /**
-   * One switch for everything the wearer uses: listen for "Who is this?" and "What is this?",
-   * and answer a tap on the glasses. Face recognition runs on each request (switch on or the phone
-   * button) only when this build allows it (D12).
+   * One switch for everything the wearer uses: listen for "Who is this?" and answer a tap on the
+   * glasses. Face recognition runs on each request only when this build allows it (D12).
    * Called from a tap, because the glasses mic permission needs a user action.
    */
   fun setMystOn(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {

@@ -40,15 +40,6 @@ import com.myst.core.Capability
 import com.myst.core.Label
 import com.myst.ui.theme.Myst
 
-/** A grouped block of content: a tinted panel with a serif title. Places still uses this as-is. */
-@Composable
-internal fun Section(title: String, content: @Composable () -> Unit) {
-  Panel(tint = Myst.Mist) {
-    Text(title, style = MaterialTheme.typography.titleLarge)
-    content()
-  }
-}
-
 @Composable
 internal fun Panel(
     tint: Color,
@@ -154,8 +145,8 @@ internal fun Avatar(name: String, photo: ByteArray?, tint: Color, size: Dp = 64.
 }
 
 /**
- * Take a reference photo with the glasses. Used by Family, Medicine and Places, which all attach
- * the pending photo when they save.
+ * Take a reference photo with the glasses. Used by Family, which attaches the pending photo when
+ * it saves.
  */
 @Composable
 internal fun GlassesPhotoCard(

@@ -39,13 +39,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myst.glasses.GlassesState
 import com.myst.ui.theme.Myst
 import com.myst.ui.theme.MystTheme
 import kotlinx.coroutines.delay
 
-/** Two tabs: Home (glasses, the one switch, try it) and Setup (family, medicine, places). */
+/** Two tabs: Home (glasses, the one switch) and Setup (family, medicine reminders). */
 @Composable
 fun MystApp(
     viewModel: EnrollViewModel,
@@ -55,13 +56,18 @@ fun MystApp(
     onWhoIsThis: () -> Unit,
     onMystOn: (Boolean) -> Unit,
     onOpenGlassesUpdate: () -> Unit,
-    onCheckBottle: () -> Unit,
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val glasses by viewModel.gateway.state.collectAsStateWithLifecycle()
   val camera by viewModel.gateway.capability.collectAsStateWithLifecycle()
   val mystOn by viewModel.mystOn.collectAsStateWithLifecycle()
   var tab by rememberSaveable { mutableStateOf(0) }
+
+  // Back from the exact-alarm settings screen (or anywhere else): pick up a changed permission.
+  LifecycleResumeEffect(Unit) {
+    viewModel.refreshExactAlarms()
+    onPauseOrDispose {}
+  }
 
   // Messages are short confirmations; they step aside after a few seconds.
   LaunchedEffect(ui.message) {
@@ -92,7 +98,6 @@ fun MystApp(
                     mystOn,
                     onMystOn,
                     onWhoIsThis,
-                    onCheckBottle,
                     onRegister,
                     onUnregister,
                     onOpenGlassesUpdate,

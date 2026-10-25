@@ -116,7 +116,9 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
             } else {
               metadata.collect { device ->
                 if (_state.value != GlassesState.Capturing) {
-                  _state.value = GlassesState.Connected(devices.size, device.batteryLevel.takeIf { it in 0..100 })
+                  // DAT has reported 0% while Meta AI showed a charged pair. Treat 0
+                  // as unavailable rather than telling the wearer the glasses are empty.
+                  _state.value = GlassesState.Connected(devices.size, device.batteryLevel.takeIf { it in 1..100 })
                 }
               }
             }
@@ -414,7 +416,7 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
         DeviceSessionError.DEVICE_DISCONNECTED ->
             CaptureResult.Failed("Glasses not available: wear them unfolded and check the Meta AI app shows them connected")
         DeviceSessionError.SESSION_ENDED_BY_DEVICE ->
-            CaptureResult.Failed("The glasses ended the session (not worn, or their software needs an update)")
+            CaptureResult.Failed("The glasses ended the session. Check that they are on and connected in Meta AI, then try again.")
         else -> CaptureResult.Failed(error.description)
       }
 

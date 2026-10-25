@@ -10,7 +10,7 @@ Read this before any technical work. It is the platform reference for D3/D5 (Met
 - **[Unknown]** Not found. Resolve on the device or with Meta before relying on it.
 - **[Verified on device]** Ran on our phone and glasses; the full list is `AGENTS.md` "Verified implementation facts".
 
-DAT 1.0.1 exposes `Device.batteryLevel` through `Wearables.devicesMetadata[id]` as a live `StateFlow` (Meta's Android SDK changelog, 1.0.0; confirmed in the pinned 1.0.1 library). The Home display uses this value for a single connected pair; its behavior on our glasses has not been checked. [Docs and SDK, not verified on device]
+DAT 1.0.1 exposes `Device.batteryLevel` and `Device.linkState` through `Wearables.devicesMetadata[id]` as a live `StateFlow` (Meta's Android SDK changelog; confirmed in the pinned library). Mayank reported DAT 0% while Meta AI showed charge. Myst now treats 0 as unavailable; the true glasses charge remains unknown. A generic `SESSION_ENDED_BY_DEVICE` is distinct from `DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED`; only the typed update-required error should direct the wearer to update DAT software. [Docs, SDK and partial device observation]
 
 ## 0. Read this first
 

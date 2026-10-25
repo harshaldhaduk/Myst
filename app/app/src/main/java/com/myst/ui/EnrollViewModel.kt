@@ -237,7 +237,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
         it.copy(
             message = if (failure == null) "Listening for \"Who is this?\"" else null,
             voiceProblem = failure?.let(::plainVoiceProblem),
-            needsGlassesUpdate = failure?.contains("update", ignoreCase = true) == true,
+            needsGlassesUpdate = failure?.contains("DAT software needs an update", ignoreCase = true) == true,
         )
       }
     }
@@ -281,7 +281,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
       when {
         failure.contains("UNAVAILABLE", ignoreCase = true) ->
             "Voice didn't start: the glasses didn't answer. Make sure they're on, then try again."
-        failure.contains("update", ignoreCase = true) -> "Voice didn't start: the glasses need an update."
+        failure.contains("DAT software needs an update", ignoreCase = true) -> "Voice didn't start: the glasses' DAT app needs an update."
         failure.contains("permission", ignoreCase = true) || failure.contains("denied", ignoreCase = true) ->
             "Voice didn't start: allow the microphone for Myst in the Meta AI app."
         else -> "Voice didn't start ($failure). Try again."

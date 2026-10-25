@@ -14,7 +14,7 @@ Updated 03:50 by Codex
 
 **In flight**
 - Conversation nudge stopped at its required device spike: DAT Speech coexistence is not established, the other speaker was not tested, and Spark returned BAD_ANSWER. Mayank accepted D25 and its batch-upload amendment D26 at 02:49; the stop rule still applies. Medication as reminders only is done (D24, efc2270).
-- Rollback: `ae9d87b` reverts the unverified `f7187d2` app changes to the last device-tested D25-era app code (`686c718` over `f5a3c9f`). The restored APK rebuilt, passed lint, and installed with `adb install -r`; a fresh behavior run is pending. Sentence-nudge WIP is preserved only in a local git stash.
+- Rollback: `ae9d87b` reverts the unverified `f7187d2` app changes to the last device-tested D25-era app code (`686c718` over `f5a3c9f`). The restored APK rebuilt, passed lint, and installed with `adb install -r`. Mayank reports glasses-to-app communication is working again after a hardware-side recovery; the exact recovery action and paths rechecked were not recorded. Sentence-nudge WIP is preserved only in a local git stash.
 - Fixed false glasses-update guidance: generic DAT session-ended errors now ask the wearer to check the connection; only DAT's typed update-required result triggers update guidance. DAT battery 0 is displayed as unavailable. `assembleDebug lintDebug` passed and the APK installed in place. Mayank reports the corrected Home shows no battery percentage and Start Myst still fails with the generic "unexpected error"; the false update warning is gone, while the DAT session root cause remains unresolved.
 
 **Verified on device**
@@ -25,6 +25,7 @@ Updated 03:50 by Codex
 - 2026-10-25 ~03:38, same S23 Ultra: restored D25-era APK built from code at `686c718` (battery UI from `f5a3c9f`) and installed successfully with `adb install -r`. No uninstall, clear-data or enrollment changes were made. Glasses behavior after rollback has not yet been rechecked.
 - After that install, Mayank reported Start Myst briefly starts, then the app says the glasses need an update; Meta AI reports that the glasses are current. This matches the app's generic session-ended fallback wording, but the underlying DAT session error code has not been captured.
 - After the targeted correction was installed, Mayank reported the battery percentage was no longer shown and Start Myst returned "Voice didn't start (An unexpected error occured)." The generic session failure remains; no typed DAT error trace was collected.
+- Mayank subsequently reported that the glasses/app communication recovered through a hardware-side fix. No new capture/recognition results or exact recovery steps have been recorded yet.
 
 **Gaps**
 - DAT battery percentage disagreed with Meta AI: Myst displayed 0% while Meta AI showed charge. Treat 0 as unavailable; actual glasses charge/runtime are not known.

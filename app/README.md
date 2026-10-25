@@ -1,14 +1,15 @@
 # Myst Android app
 
-Android host app for Ray-Ban Meta glasses (DAT 1.0.1). State of `main` at 4289fc2; built vs missing per requirement is in `hub/PRD.md` section 4, device results in `AGENTS.md` "Verified implementation facts".
+Android host app for Ray-Ban Meta glasses (DAT 1.0.1). State of `main` at efc2270; built vs missing per requirement is in `hub/PRD.md` section 4, device results in `AGENTS.md` "Verified implementation facts".
 
 What it does:
 
-- **Familiar Faces:** "Who is this?" (DAT Speech phrase, experimental; a glasses tap via Android `MediaSession`, untested on glasses; or the phone button) takes one glasses photo, matches it with Muse Spark against enrolled reference photos (`MuseIdentity`, only in builds with face ID enabled, D12), and speaks name, relationship, when she last saw them (D18) and one caregiver memory, under 20 words (`ResponseGuard`), with Android TextToSpeech (D17). Builds without face ID always answer "I'm not sure who that is."
-- **Medicine (frozen for the demo, D20):** "What is this?" runs the bottle check (photo match plus label read, D14). Dose reminders, re-reminds at +10/+20 min, and a missed-dose notification on this phone (WhatsApp is a mock, Q13). "Reported taken" button refuses a second log for the same dose.
-- **Setup tab:** Family (consent, photo, memories, revoke), Medicine, Places. Records stay in app-private storage with backup off.
+- **Familiar Faces:** "Who is this?" (DAT Speech phrase, experimental; a glasses tap via Android `MediaSession`, untested on glasses; or the quiet "Backup: Who is this?" text button at the bottom of Home) takes one glasses photo, matches it with Muse Spark against enrolled reference photos (`MuseIdentity`, only in builds with face ID enabled, D12), and speaks name, relationship, when she last saw them (D18) and one caregiver memory, under 20 words (`ResponseGuard`), with Android TextToSpeech (D17). Builds without face ID say "Face recognition isn't set up on this phone."
+- **Reminders (D24; frozen for the demo, D20):** at the set time Myst says "It's time for your <name>.", "It's <location>." (free text) and, when the caregiver set them, "Take it with a glass of water." / "Have something to eat first." Re-reminds at +10/+20 min, a missed-dose notification on this phone (WhatsApp is a mock, Q13). Logs DOSE_REMINDED / DOSE_REREMINDED (30 days); "Mark reported taken" logs once, a second report logs DOSE_BLOCKED_DOUBLE. No camera, no Muse, no medicine identification. No demo button: set a dose a couple of minutes ahead.
+- **Setup tab:** Family (consent, photo, memories, revoke) and Reminders (add, edit with a preview of the spoken line, delete, today's timeline, exact-alarm warning). Records stay in app-private storage with backup off.
+- **Removed (D24):** bottle check, room check, "What is this?", Places, the two Home buttons. Archived at git tag `archive/bottle-check-places-home-buttons`; restore a file with `git checkout archive/bottle-check-places-home-buttons -- <path>` (the tag is the commit before removal, d91d941; see what was removed with `git diff --stat archive/bottle-check-places-home-buttons efc2270 -- app/`). On first start the D24 build copies a medication's place name into its location, then deletes `places.json` and the household photos folder.
 
-Not built: the follow-up "What did we talk about last time?", demo reset, guided dose routine, wrong-bottle correction, voice "Done", room check (D15), unit tests.
+Not built: the follow-up "What did we talk about last time?", demo reset, voice "Done", spoken already-taken line (R11), unit tests.
 
 ## Build
 
@@ -37,4 +38,4 @@ There is no simulated-glasses switch on screen since D19; `MockGlassesKit` and t
 
 ## Data
 
-People, memories, sightings (D18), medications and places live in app-private `noBackupFilesDir` on the phone and are removed by Revoke or delete. Live glasses photos are sent to Muse Spark (Standard mode) only when the wearer asks and are never stored; enrolled reference photos are stored on the phone and sent with each face-ID request.
+People, memories, sightings (D18), medications and dose events live in app-private `noBackupFilesDir` on the phone and are removed by Revoke or delete. Live glasses photos are sent to Muse Spark (Standard mode) only for face ID, only when the wearer asks and are never stored; enrolled reference photos are stored on the phone and sent with each face-ID request.

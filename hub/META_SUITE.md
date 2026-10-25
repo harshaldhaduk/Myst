@@ -42,7 +42,7 @@ Read this before any technical work. It is the platform reference for D3/D5 (Met
 
 - **Ray-Ban Meta Gen 2:** 12 MP ultra-wide camera, 3K/30 video, open-ear speakers, five or six mics (sources disagree), up to 8 h typical battery plus case, from $379. [Reported]
 - **Meta Ray-Ban Display:** 600x600 color display in the right lens, $799, ships with Meta Neural Band (EMG wristband, IPX7, about 18 h), glasses about 6 h. [Reported]
-- **Ray-Ban Meta Audio:** a camera-free model announced at Connect 2026 (from $349). It has no camera, so it cannot feed Familiar Faces or the bottle check. DAT support is [Unknown]. [Reported]
+- **Ray-Ban Meta Audio:** a camera-free model announced at Connect 2026 (from $349). It has no camera, so it cannot feed Familiar Faces. DAT support is [Unknown]. [Reported]
 - All DAT-supported models need firmware V128 for DAT 1.0.1. Check on the phone: Meta AI app, Devices, device, Device settings, General, About, Version. [Docs]
 - Meta says it does not access photos, video or audio the glasses send directly to a third-party app. [Docs]
 
@@ -130,9 +130,9 @@ Base URL `https://api.meta.ai/v1`, bearer token in `MODEL_API_KEY` (the team's `
 
 Rate limits are per team: Spark 3,000 RPM and 4M TPM; Muse Image 150 RPM; Voice Transcribe 256 concurrent streams and 16,000 streams per hour; SAM 3,000 RPM. Free credits are not stated on the pricing page (the track gate doc says $50; a separate Meta hackathon reportedly says $150, a different event). [Docs, Reported]
 
-**Image understanding** (what the bottle check and any scene question use): images go only in `user` messages as a public URL, base64 data URL, or Files API id. Limits: 50 images per request, 50 MB inline, JPEG, PNG, GIF, WebP, ICO. Tasks: describe, answer questions, extract text and data from documents, identify objects and relations, and localize objects as points or boxes on a 0 to 1000 normalized grid. A roughly 1280 px image costs about 1,300 to 1,500 tokens. The page has **no caveat about faces or identifying people** [Docs]. Muse Spark did compare a glasses photo with consented reference photos: 5 of 5 "match" verdicts at 0.95-0.99 (D12 dev testing); no stranger or no-face trials yet, so its false-match behavior is [Unknown]. [Verified on device, partial]
+**Image understanding** (what face ID and any scene question use): images go only in `user` messages as a public URL, base64 data URL, or Files API id. Limits: 50 images per request, 50 MB inline, JPEG, PNG, GIF, WebP, ICO. Tasks: describe, answer questions, extract text and data from documents, identify objects and relations, and localize objects as points or boxes on a 0 to 1000 normalized grid. A roughly 1280 px image costs about 1,300 to 1,500 tokens. The page has **no caveat about faces or identifying people** [Docs]. Muse Spark did compare a glasses photo with consented reference photos: 5 of 5 "match" verdicts at 0.95-0.99 (D12 dev testing); no stranger or no-face trials yet, so its false-match behavior is [Unknown]. [Verified on device, partial]
 
-**Structured output:** `text.format` with `type: "json_schema"` (Responses) or `response_format` (Chat Completions); generation is constrained to the schema; `strict: true` enforces a stricter subset; recursion is rejected; you still parse the JSON string yourself. Use it for the bottle-check verdict and the response composer so the guard can reject malformed output. **Tool calling:** `tools` with function definitions; `tool_choice` must be `"auto"`; always validate arguments yourself. [Docs]
+**Structured output:** `text.format` with `type: "json_schema"` (Responses) or `response_format` (Chat Completions); generation is constrained to the schema; `strict: true` enforces a stricter subset; recursion is rejected; you still parse the JSON string yourself. Use it for match verdicts and the response composer so the guard can reject malformed output. **Tool calling:** `tools` with function definitions; `tool_choice` must be `"auto"`; always validate arguments yourself. [Docs]
 
 **Speech in:** Muse Voice Transcribe realtime at `wss://api.meta.ai/v1/asr/realtime` (raw 16-bit mono PCM, 16 or 24 kHz; modes `PUSH_TO_TALK`, `ENDPOINTING`, `DIARIZATION`; 60-minute sessions) or file upload at `POST /v1/asr/transcribe` (mono 16-bit WAV, 32 MB or 10 minutes). No word timestamps or confidence scores. Audio input to `muse-spark-1.3` is degraded; the docs recommend `muse-spark-1.2` for audio. **Speech out: none.** [Docs]
 
@@ -178,14 +178,14 @@ Mirrors the PRD table, which also records what is built on `main`. Detail and so
 | Audio to wearer | No DAT call; Android audio over A2DP [Docs]. Heard on the glasses with Meta's sample [Verified on device]. | Live |
 | Speech out | No Meta TTS [Docs] | Android TextToSpeech, labeled OS (D17, Proposed) |
 | Speech in | HFP mic plus Muse Voice Transcribe realtime, or DAT Speech (experimental) [Docs]. DAT Speech starts on our glasses [Verified on device, partial]. | DAT Speech, experimental (D17) |
-| Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Speech phrase plus phone button (D17); glasses tap via MediaSession untested |
+| Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Speech phrase (D17) plus a quiet "Backup: Who is this?" text button on Home (D24); glasses tap via MediaSession untested |
 | Person identification | Policy-gated, no Meta matcher [Docs]. Muse Spark comparison works in dev testing [Verified on device, partial]. | `MuseIdentity`, dev builds only (D12); never presented as Meta-approved |
 | Memory storage | Caregiver records on the phone | Live (app logic) |
-| Label reading and bottle check | Muse Spark image understanding plus structured output [Docs]. Accuracy on our bottles not recorded. | Built (D14); frozen (D20); 20-frame test not recorded |
+| Label reading and bottle check | Muse Spark image understanding plus structured output [Docs]. | Removed (D24, efc2270): medication sends no frame to Muse |
 | Muse access | HTTPS, key from dashboard; region claims conflict (section 10). Our key works [Verified on device]. | Live |
 | Dose scheduling | Android alarms (host OS) | Live; OS feature, confirm under D5 |
 | Caregiver alerts | WhatsApp Cloud API, approved template, token problem (section 5) | Live or mock; see Q13 |
-| Face blur before Muse | No Meta tool found | Send only close-up bottle frames; never send faces |
+| Face blur before Muse | No Meta tool found | No blur; only face ID sends frames (on request, D12 dev builds); medication sends none (D24) |
 | Object finding | SAM 3.1 or Muse Spark grounding exists [Docs] | Roadmap (D8) |
 
 ## 8. How Myst maps onto the suite
@@ -196,7 +196,8 @@ Wearer        Glasses              Android phone (Myst)                       Me
   start Myst"  camera  --------->   DAT photo capture (one per request)
                                     identity interface (MuseIdentity, D12 dev only)
                                     caregiver records (on phone, family-written)
-                                    Muse Spark: label read / phrasing ---------> api.meta.ai/v1
+                                    Muse Spark: face match only (D12) --------> api.meta.ai/v1
+                                    dose reminders: Android alarms, no frame (D24)
                                     guard: uncertainty, source records, 20 words
  whisper <--- speaker A2DP <-----   Android TextToSpeech (OS, D17)
                                     WhatsApp template alert ------------------> Graph API
@@ -206,9 +207,9 @@ Requirement impact (full list in `hub/PRD.md`):
 - **R1 (3 s):** trigger plus capture plus identity plus Muse plus speech in series is unproven. Measure on device first (`hub/LOOP.md` spike).
 - **R3 and R4:** `MuseIdentity` (D12) plus a "not sure" path; never present it as Meta-approved.
 - **R5:** no retention is achievable on our side; never persist frames. Blur has no Meta tool.
-- **R7 and R8:** two independent Muse Spark reads (for example `1.3` and `1.2`, or a SAM 3.1 label crop then a read) with structured output and a rule that any disagreement means "ask her to turn the bottle". Use a still photo, not LOW video; label text is small. The agreement rule is Q4's human call.
+- **R7 and R8:** removed by D24. Medication is reminders only and sends no frame to Muse.
 - **R13 and R20:** WhatsApp template plus Q13.
-- **Data location:** caregiver records stay on the phone; frames go only to Meta's API in Standard mode, only when the wearer triggered, and are not stored.
+- **Data location:** caregiver records stay on the phone; frames go only to Meta's API in Standard mode, only for face ID, only when the wearer triggered, and are not stored.
 
 ## 9. Verify on the device (extends the spike in `hub/LOOP.md`)
 
@@ -220,7 +221,7 @@ Done items record their result in `AGENTS.md` "Verified implementation facts".
 4. A2DP playback of a fixed phrase: clarity and call-to-sound time; cost of switching to HFP and back. Partly: audible, not timed.
 5. Voice Invocation "Hey Meta, start Myst": does it reach the app in Developer Mode or a release channel?
 6. Speech: where it runs, accuracy on "Who is this?" in a noisy room; compare Muse Voice Transcribe. Partly: session starts; phrase accuracy not measured.
-7. Muse Spark with a bottle photo: right and wrong bottles, structured verdict, 20 trials.
+7. ~~Muse Spark with a bottle photo~~: superseded by D24 (bottle check removed).
 8. Muse Spark behavior when shown a person and asked to compare to a reference photo (see section 6). Partly: 5 of 5 matches; strangers and no-face not run.
 9. Model API request retention and training terms; our key's region eligibility.
 10. WhatsApp: template approval time, test recipient list, delivery to Robert's phone.

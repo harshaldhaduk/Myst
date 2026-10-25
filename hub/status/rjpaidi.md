@@ -4,6 +4,8 @@ Updated 22:45 by Claude Code
 
 Corrected 02:05 by Claude Code at Mayank's request: this branch's work is merged to `main` (via `kchperla/ui-redesign`, 4289fc2); Demo Controls, the MockIdentity picker and "Remind now" are gone from the screen (D19); Lane 3 is frozen for the demo (D20); MockIdentity removal is in flight under D21 (Mayank). Device results below are unchanged.
 
+Corrected 02:35 by Claude Code at Mayank's request: the Lane 3 bottle check (D14), Places and room checks (D15), "What is this?" and bottle/room reference photos are removed by D24 (efc2270), archived at git tag `archive/bottle-check-places-home-buttons`. Medication is reminders only (medicine, free-text location, water/food lines); reminders now log DOSE_REMINDED / DOSE_REREMINDED. Lines below about those features describe removed code.
+
 **Code is merged to `main`** (correction 02:05; this line used to say the branch was unmerged). RJ and Claude Code are actively working Lanes 2-4, including **Lane 3 Medication Routine**; please coordinate before starting on those files.
 
 Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 1. Coordinate before merging; if kchperla's spike lands first, swap its code in behind `GlassesGateway`.

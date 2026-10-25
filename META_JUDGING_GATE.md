@@ -220,18 +220,18 @@ These are **hard release gates** independent of the 100-point score. Any failure
 | H1 | FAIL | No script or video yet. | Lane 5: write the 25-30 s opening. |
 | H2 | FAIL | No demo clip of Margaret turning to Daniel. | Lane 5: film after E2 runs. |
 | H3 | PENDING | Built: `Person.memories` -> `FamiliarFaces.whisperFor` -> `ResponseGuard`. No recorded record-to-output trace. | Lane 2: log one run with record id and spoken line. |
-| H4 | PENDING | Built: DAT Speech phrase, phone button, glasses tap (tap untested on glasses). Audio on glasses for this build not recorded. | Lane 2: record one on-glasses run. |
+| H4 | PENDING | Built: DAT Speech phrase, glasses tap (untested on glasses), quiet "Backup: Who is this?" text button at the bottom of Home (D24; the two Home buttons are gone). Audio on glasses for this build not recorded. | Lane 2: record one on-glasses run. |
 | H5 | PENDING | Built: Setup > Family (consent, memories add/delete/reorder, revoke deletes record, photo, visits). Revoke not re-checked on a phone with the D19 build. | Lane 4: revoke-then-ask test on the phone. |
 | H6 | FAIL | No judge-facing statement or clip. | Lane 5. |
 | A1 | PENDING | Built: `MuseIdentity` (D12). Status file: 5 of 5 match verdicts, 2 with two enrolled; log holds Muse's verdict, not ground truth. | Lane 2: logged run with a second enrolled person. |
 | A2 | PENDING | Path built end to end; no timestamped trace or video. | Lane 2: capture one trace. |
 | A3 | FAIL | Follow-up "What did we talk about last time?" not built. | Lane 2: build or cut from the story. |
-| A4 | FAIL | No stranger, no-face or no-memory trials. On `main` a Muse failure says "not sure" (D21 in flight). | Lane 2: 3/3 negatives after D21. |
+| A4 | FAIL | No stranger, no-face or no-memory trials. D21 is on `main` (a Muse failure says "I can't check right now"). | Lane 2: 3/3 negatives. |
 | A5 | FAIL | No architecture walkthrough or narration. Inputs: `hub/META_SUITE.md` section 8, `hub/PRD.md` section 2. | Lane 5. |
 | O1 | FAIL | Differentiator sentence exists (section 1); no matching video scene. | Lane 5. |
 | O2 | FAIL | 3-row comparison not written. | Lane 5. |
 | O3 | FAIL | No wearer POV footage. | Lane 5. |
-| O4 | FAIL | No walkthrough yet. Scope narrowed to Familiar Faces for the demo (D20). | Lane 5. |
+| O4 | FAIL | No walkthrough yet. Scope narrowed to Familiar Faces for the demo (D20); medication is reminders only, no bottle check (D24). | Lane 5. |
 | E1 | FAIL | No filmed run; no demo reset. | Lanes 2, 5. |
 | E2 | FAIL | No 5-run log, no negative tests, no reset, no unit tests (D13 not adopted). | Lane 2. |
 | E3 | FAIL | Video not recorded. | Lane 5. |
@@ -256,7 +256,7 @@ JUDGING-READY =
 ELSE: NOT JUDGING-READY; name the exact blockers.
 ```
 
-**Last audit:** `2026-10-25 02:05, docs against main 4289fc2, Claude Code (status files, no new device run)`  
+**Last audit:** `2026-10-25 02:35, docs against main efc2270, Claude Code (status files; D24 build installed on the S23 Ultra, nothing else run)`  
 **Verified models/API calls:** `PARTIAL: muse-spark-1.3 calls recorded in hub/status/ (no inspectable trace)`  
 **Verified glasses hardware flow:** `PARTIAL: capture, Speech start, A2DP, MuseIdentity matches recorded in hub/status/; see AGENTS.md`  
 **Verified end-to-end live demo:** `NOT VERIFIED`  

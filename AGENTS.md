@@ -15,7 +15,7 @@ Myst, Meta track hackathon (HackTX 2026): an Android app paired to Ray-Ban Meta 
 
 ## Current system and direction
 
-An Android app on `main` (`app/`) runs on real Ray-Ban Meta glasses through DAT 1.0.1: one photo per request, DAT Speech trigger (experimental), Muse Spark over HTTPS for face matching (D12, dev builds only) and the bottle check (D14), Android TTS output (D17). What is built, mocked and missing is in the PRD tables and `hub/status/`; what ran on the device is below. Medication Routine is frozen for the demo period (D20). Direction is `hub/PRD.md` (D4, Proposed), which supersedes `PROJECT_CONTEXT.md` where they differ: Familiar Faces and Medication Routine are both P0, with the caregiver app for setup and alerts. Object help is roadmap (D8). Status of every capability is in the PRD table; the PRD is a target, not proof of implementation.
+An Android app on `main` (`app/`) runs on real Ray-Ban Meta glasses through DAT 1.0.1: one photo per request, DAT Speech trigger (experimental), Muse Spark over HTTPS for face matching only (D12, dev builds only), Android TTS output (D17). Medication is reminders only (D24): no camera and no Muse; the bottle check, room check, "What is this?" and Places were removed in efc2270 (archived at tag `archive/bottle-check-places-home-buttons`). What is built, mocked and missing is in the PRD tables and `hub/status/`; what ran on the device is below. Medication Routine is frozen for the demo period (D20). Direction is `hub/PRD.md` (D4, Proposed), which supersedes `PROJECT_CONTEXT.md` where they differ: Familiar Faces and Medication Routine are both P0, with the caregiver app for setup and alerts. Object help is roadmap (D8). Status of every capability is in the PRD table; the PRD is a target, not proof of implementation.
 
 ## Sources of truth
 
@@ -45,7 +45,7 @@ Custom code is for missing product behavior built on Meta tools: consent and enr
 - Recognize only people who opted in. Enrollment must be editable and revocable. Never scan bystanders continuously; capture is brief and user-triggered.
 - Never state an uncertain identification as fact. Below adequate confidence the system says it is not sure or stays silent. Never invent names, relationships or memories; every memory spoken must trace to a family-entered record.
 - Label every demo element as live (real Meta/Muse capability), mock (scripted), or roadmap. A mock must never be presented as working. Do not claim Muse, SDK, battery, latency or accuracy abilities that were not verified on the actual device.
-- Not medical: no diagnosis, treatment, fall detection or emergency response. Medication (D6): Myst may compare a held bottle to the caregiver's record, speak caregiver-entered counts and log a dose as "reported taken". It never advises on dosing, never infers a count, and a log is not proof a medicine was taken. A false "yes" on a wrong bottle is a stop condition. Never quiz or correct the wearer.
+- Not medical: no diagnosis, treatment, fall detection or emergency response. Medication (D6 as narrowed by D24): Myst speaks caregiver-entered reminders, storage location, water/food rules and counts, and logs "reported taken". It never identifies a medicine, never advises on dosing, never infers a count, and a log is not proof a medicine was taken. Never quiz or correct the wearer.
 - No frames, faces or audio are retained. Identity data stays on the phone.
 - Face identification is restricted by Meta's acceptable use policy without an approved accessibility exception (exact wording, approval status and the missing request channel: `hub/META_SUITE.md` section 6). Keep identity behind one interface (D7). The only exception is D12 (Accepted by RJ): `MuseIdentity` for private testing among consenting teammates, off unless `myst.allowFaceId=true`, labeled experimental and unapproved. D16 (a Meta representative's verbal OK of the in-app consent form) is not Meta approval; the demo must never say Meta approved identification.
 - Muse and personal data: use Standard-mode models only (never the `-contributor` variants, which let Meta train on the content), send a frame only when the wearer triggered it, never persist it, and never send a frame that shows a person until Q12 is answered, except D12's accepted risk (consenting teammates only in frame).
@@ -72,7 +72,7 @@ Only what a status file records from the real device. Device: Samsung Galaxy S23
 - DAT Speech starts on the glasses (`RESPONSE_STATUS_OK`, also 2026-10-25 00:50 with the D19 build); sessions end after about 60 s and Myst restarts them. That the spoken phrase itself fired a whisper is not confirmed.
 - MuseIdentity (D12): 5 of 5 Muse verdicts "match" (confidence 0.95-0.99, Muse 1.5-2.5 s); the user reports every name was right. No stranger, no-face or 20-trial wrong-name runs yet; no end-to-end trigger-to-speech timing.
 
-Not verified on the device: glasses-tap trigger, bottle check on real bottles, dose reminders (emulator only), battery, end-to-end latency.
+Not verified on the device: glasses-tap trigger, dose reminders (emulator only; the D24 build was installed on the S23 Ultra but no reminder has fired there), battery, end-to-end latency.
 
 ## Keep the docs true
 

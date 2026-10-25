@@ -1,6 +1,6 @@
 # Mayank (mayank-jain632) · Lane 2 (files shared with RJ): Familiar Faces hardening, Muse key handling
 
-Updated 02:45 by Codex
+Updated 03:12 by Codex
 
 **Shipped** (on `main`, pushed: ef9d32c, 7aeed51, efc2270)
 - Glasses battery UI: Home observes DAT 1.0.1 device metadata for one connected pair and displays a valid percentage in the status pill and Glasses card; otherwise the card says battery unavailable. Built in an isolated worktree so the D25 conversation spike changes in the shared checkout are untouched.
@@ -11,9 +11,11 @@ Updated 02:45 by Codex
 - efc2270 (D24): Reminders page replaces Medicine; bottle check, room check, "What is this?", Places and the two Home buttons removed (archived at tag `archive/bottle-check-places-home-buttons`); quiet "Backup: Who is this?" text button at the bottom of Home. 7aeed51 alone did not build (it deleted files still in use); efc2270 fixes that. Both pushed.
 - D25 feasibility tooling: a debug-only 30-second consent-driven HFP recording control on Home. It keeps PCM and WAV in RAM, calls Meta's `/v1/asr/transcribe` as multipart DIARIZATION WAV and a Spark structured summary, and reports route/photo/API status. It is a spike, not a visit feature. `docs/demo-script.md` is a draft operator procedure.
 - MuseClient no longer logs model-output snippets on malformed JSON; conversation text could otherwise appear in diagnostics.
+- D28 code: repeat successful recognition refreshes the stored VISIT timestamp and can say "You just saw <name>" within five minutes. The Android MediaSession tap guess was removed; Home now promises only experimental voice plus the quiet backup control. No real-glasses run of this revision yet.
+- D27 code: Reminders uses Android's time picker and one daily alarm per saved time, with optional location/water/food lines. Reported-taken controls, re-reminds and missed-dose alerts were removed; old records remain readable. No real-phone run of this revision yet.
 
 **In flight**
-- Conversation nudge stopped at its required device spike: DAT Speech coexistence is not established, the other speaker was not tested, and Spark returned BAD_ANSWER. Mayank accepted D25 and its batch-upload amendment D26 at 02:49; the stop rule still applies. Medication as reminders only is done (D24, efc2270).
+- D29 Proposed: pivot conversation help to an optional, automatic nudge after a cut-off sentence during a short consented visit. The D25 spike only established wearer ASR and a DAT photo during HFP; DAT Speech sharing, other-speaker pickup and Spark summary are unproved. Building the smallest grounded sentence-break path next.
 
 **Verified on device**
 - 02:20: efc2270 installed on the S23 Ultra with `adb install -r`; family data intact (screenshot check). No reminder fired then. The task handoff says the Muse key was provisioned afterward; this session did not inspect or reveal it.
@@ -25,6 +27,7 @@ Updated 02:45 by Codex
 - Battery percentage has not been checked against the real glasses; the UI reading is not a battery-life measurement.
 - Stranger, no-face and failure trials (gate A4, E2) after D21 lands.
 - D25: confirm DAT Speech phrase while AudioRecord is active, hear the teammate at about 1 m, collect the ASR/Spark timings, and diagnose Spark's invalid structured answer. The debug control does not start a visit or whisper a nudge.
+- D27/D28 revisions pass `assembleDebug lintDebug` in the shared checkout (subagent report) but are not installed or device-verified. Check Krishna repeat wording, Home's removed tap claim, and a daily reminder on the S23 Ultra before calling them live behavior.
 - Rotate the old Muse key if any APK built before D22 was shared.
 
 **Real-glasses rehearsal log (2026-10-25; observations, not accuracy claims)**

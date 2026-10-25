@@ -17,10 +17,7 @@ import com.myst.BuildConfig
 import com.myst.core.guard.ResponseGuard
 import com.myst.features.faces.FamiliarFaces
 import com.myst.core.records.Event
-import com.myst.core.records.EventType
 import com.myst.features.meds.DoseReminders
-import com.myst.features.meds.DoseSchedule
-import java.util.UUID
 import com.myst.features.faces.MuseIdentity
 import com.myst.muse.MuseClient
 import com.myst.core.secrets.MuseKeyStore
@@ -29,15 +26,11 @@ import com.myst.features.VoiceCommands
 import com.myst.features.conversation.ConversationSpike
 import com.myst.glasses.AndroidTtsSpeaker
 import com.myst.glasses.CaptureResult
-import com.myst.glasses.GlassesTapTrigger
 import com.myst.glasses.CaptureTimings
 import com.myst.glasses.DatGlassesGateway
 import com.myst.glasses.Photo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -127,8 +120,6 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     refreshHousehold()
     // Imports a freshly provisioned key (and wipes its plaintext file) at app start.
     viewModelScope.launch(Dispatchers.IO) { _museKeySet.value = museKeys.hasKey() }
-    // Fast demo timing has no switch any more; make sure an old setting cannot stay on.
-    if (DoseReminders.fastDemo(application)) DoseReminders.setFastDemo(application, false)
     _ui.update { it.copy(exactAlarms = DoseReminders.canScheduleExact(application)) }
     viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
   }
@@ -146,36 +137,6 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     if (allowed && !wasAllowed) viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
   }
 
-  /** R11/R12: log "reported taken" (D6), unless this dose was already reported. */
-  fun markTaken(med: Medication) {
-    viewModelScope.launch {
-      val now = System.currentTimeMillis()
-      val already =
-          withContext(Dispatchers.IO) {
-            val dose = DoseSchedule.currentDoseTime(med, now)
-            val earlier = DoseSchedule.reportedTaken(med, dose, household.events())
-            household.log(
-                Event(
-                    UUID.randomUUID().toString(),
-                    if (earlier == null) EventType.DOSE_REPORTED_TAKEN else EventType.DOSE_BLOCKED_DOUBLE,
-                    now,
-                    medicationId = med.id,
-                    detail = if (earlier == null) "marked on phone" else "second report on phone, not logged as taken",
-                ),
-            )
-            earlier
-          }
-      _ui.update {
-        it.copy(
-            message =
-                already?.let { e -> "Already reported taken at ${DoseSchedule.formatTimeOfDay(e.atMillis)}. Not logged again." }
-                    ?: "${med.labelName}: reported taken at ${DoseSchedule.formatTimeOfDay(now)}.",
-        )
-      }
-      refreshHousehold()
-    }
-  }
-
   // MARK: - Medication reminders (Lane 3 setup)
 
   fun saveMedication(draft: Medication) {
@@ -183,7 +144,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     viewModelScope.launch {
       val med =
           withContext(Dispatchers.IO) {
-            // Cancel first: a shorter window can drop a stage whose old alarm would still fire.
+            // Cancel the old daily alarm before scheduling the edited time.
             household.saveMedication(draft).also {
               DoseReminders.cancel(getApplication(), it.id)
               DoseReminders.rescheduleAll(getApplication())
@@ -243,36 +204,17 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     }
   }
 
-  // MARK: - Glasses tap trigger (silent "Who is this?")
-
-  private var tapTrigger: GlassesTapTrigger? = null
-  private val _tapOn = MutableStateFlow(false)
-  val tapOn: StateFlow<Boolean> = _tapOn.asStateFlow()
-
-  fun setTapTrigger(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
-    tapTrigger?.stop()
-    tapTrigger = null
-    if (on) {
-      tapTrigger = GlassesTapTrigger(getApplication()) { whoIsThis(requestPermission) }.also { it.start() }
-    }
-    _tapOn.value = on
-    _ui.update { it.copy(message = if (on) "Tap the glasses to ask \"Who is this?\"" else "Glasses tap off.") }
-  }
-
   // MARK: - The one switch
 
-  /** Myst is on when it is listening for a phrase or a glasses tap. */
-  val mystOn: StateFlow<Boolean> =
-      combine(gateway.isListening, _tapOn) { listening, tap -> listening || tap }
-          .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+  /** Myst is on while DAT Speech is listening for the phrase. */
+  val mystOn: StateFlow<Boolean> = gateway.isListening
 
   /**
-   * One switch for everything the wearer uses: listen for "Who is this?" and answer a tap on the
-   * glasses. Face recognition runs on each request only when this build allows it (D12).
+   * One switch for DAT Speech's "Who is this?" phrase. The on-phone backup remains available.
+   * Face recognition runs on each request only when this build allows it (D12).
    * Called from a tap, because the glasses mic permission needs a user action.
    */
   fun setMystOn(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
-    setTapTrigger(on, requestPermission)
     setListening(on, requestPermission)
     if (!on) _ui.update { it.copy(message = "Myst is resting.") }
   }
@@ -330,7 +272,6 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   }
 
   override fun onCleared() {
-    tapTrigger?.stop()
     gateway.stopListening()
     speaker.shutdown()
     super.onCleared()

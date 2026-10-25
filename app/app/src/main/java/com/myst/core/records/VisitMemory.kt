@@ -16,7 +16,7 @@ object VisitMemory {
   /** Sightings closer together than this are one encounter. */
   const val SAME_ENCOUNTER_MS = 30 * 60_000L
 
-  /** A repeat sighting this soon adds nothing; do not store it. */
+  /** Repeat asks this soon update one stored sighting and can say "just now". */
   const val DEDUPE_MS = 5 * 60_000L
 
   const val KEEP_DAYS = 30L
@@ -26,8 +26,8 @@ object VisitMemory {
 
   /**
    * The last sighting of an earlier encounter, or null if there is none. Sightings chained within
-   * [SAME_ENCOUNTER_MS] of [now] belong to the current encounter and are skipped, so asking twice
-   * in one meeting gives the same answer ("at 1 PM"), not "2 minutes ago".
+   * [SAME_ENCOUNTER_MS] of [now] belong to the current encounter and are skipped. [sentenceForAsk]
+   * separately uses the latest recognition in that encounter when the wearer asks again.
    */
   fun previousEncounter(sightings: List<Long>, now: Long): Long? {
     var edge = now
@@ -59,6 +59,19 @@ object VisitMemory {
   fun sentence(name: String, previous: Long?, now: Long, zone: ZoneId = ZoneId.systemDefault()): String? {
     val at = previous?.let { whenPhrase(it, now, zone) } ?: return null
     return "You saw $name $at."
+  }
+
+  /**
+   * A repeat ask should acknowledge the latest recognition in this encounter. On the first ask
+   * after a gap, use the prior encounter as before. Both lines refer to Myst's own sightings.
+   */
+  fun sentenceForAsk(name: String, sightings: List<Long>, now: Long, zone: ZoneId = ZoneId.systemDefault()): String? {
+    val latest = sightings.filter { it <= now }.maxOrNull()
+    if (latest != null && now - latest <= SAME_ENCOUNTER_MS) {
+      if (now - latest <= DEDUPE_MS) return "You just saw $name."
+      return sentence(name, latest, now, zone)
+    }
+    return sentence(name, previousEncounter(sightings, now), now, zone)
   }
 
   /**

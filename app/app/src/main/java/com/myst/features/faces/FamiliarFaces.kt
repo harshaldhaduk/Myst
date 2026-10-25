@@ -85,7 +85,7 @@ class FamiliarFaces(
     withContext(Dispatchers.IO) { recordSighting(match.person.id, now, provider.capability.label.name) }
 
     // Longest line first; each shorter one drops a part. A match is never answered with silence.
-    val candidates = whisperCandidates(match.person, VisitMemory.previousEncounter(before, now), now)
+    val candidates = whisperCandidates(match.person, VisitMemory.sentenceForAsk(match.person.name, before, now))
     var firstBlock: String? = null
     for ((level, text) in candidates.withIndex()) {
       when (val d = ResponseGuard.check(text, match.person, everyone)) {
@@ -151,11 +151,10 @@ class FamiliarFaces(
    * caregiver-written memory if there is room under the 20-word limit. Longest first: the full
    * line, then without the memory, then the name and relationship alone.
    */
-  private fun whisperCandidates(person: Person, previous: Long?, now: Long): List<String> {
+  private fun whisperCandidates(person: Person, visit: String?): List<String> {
     val relation = person.relationship.trim().lowercase().takeIf { it.isNotEmpty() }
     val base =
         if (relation != null) "I think that's ${person.name}, your $relation." else "I think that's ${person.name}."
-    val visit = VisitMemory.sentence(person.name, previous, now)
     val memory = nextMemory(person)?.text?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }?.let { "$it." }
     return listOf(VisitMemory.compose(base, visit, memory), VisitMemory.compose(base, visit, null), base).distinct()
   }

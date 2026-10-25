@@ -1,33 +1,13 @@
 package com.myst.features.meds
 
-import com.myst.core.records.Event
-import com.myst.core.records.EventType
 import com.myst.core.records.Medication
 import java.util.Calendar
 
-/** The reminder steps for one dose (PRD R6, R13). */
+/** Old stage names remain so alarms scheduled by earlier APKs can be ignored safely. */
 enum class DoseStage { REMIND, REREMIND_1, REREMIND_2, WINDOW_CLOSED }
 
-/** Pure timing rules, kept free of Android so they can be unit-tested (D13). */
+/** One daily reminder time, kept free of Android. */
 object DoseSchedule {
-  /** Normal timing: re-remind at +10 and +20 min, alert when the window closes. */
-  val NORMAL = Timing(rereminds = listOf(10, 20), windowOverride = null)
-
-  /** Demo timing: re-remind at +1 and +2 min, window closes at +3. */
-  val FAST_DEMO = Timing(rereminds = listOf(1, 2), windowOverride = 3)
-
-  data class Timing(val rereminds: List<Int>, val windowOverride: Int?)
-
-  /** Minutes after the dose time at which each stage fires; re-reminds past the window are dropped. */
-  fun offsets(med: Medication, timing: Timing): Map<DoseStage, Int> {
-    val window = timing.windowOverride ?: med.windowMinutes
-    val stages = mutableMapOf(DoseStage.REMIND to 0)
-    timing.rereminds.getOrNull(0)?.takeIf { it < window }?.let { stages[DoseStage.REREMIND_1] = it }
-    timing.rereminds.getOrNull(1)?.takeIf { it < window }?.let { stages[DoseStage.REREMIND_2] = it }
-    stages[DoseStage.WINDOW_CLOSED] = window
-    return stages
-  }
-
   /** The dose time on the day of [dayMillis]. */
   fun doseTimeOn(med: Medication, dayMillis: Long): Long =
       Calendar.getInstance().run {
@@ -39,23 +19,11 @@ object DoseSchedule {
         timeInMillis
       }
 
-  /**
-   * Which dose a schedule should cover at [now]: today's if its window is still open, otherwise
-   * tomorrow's.
-   */
-  fun currentDoseTime(med: Medication, now: Long, timing: Timing = NORMAL): Long {
+  /** The next alarm after [now], today if the time has not passed, otherwise tomorrow. */
+  fun nextReminderTime(med: Medication, now: Long): Long {
     val today = doseTimeOn(med, now)
-    val closes = today + (timing.windowOverride ?: med.windowMinutes) * 60_000L
-    return if (now < closes) today else doseTimeOn(med, now + 24 * 60 * 60_000L)
+    return if (today > now) today else doseTimeOn(med, now + 24 * 60 * 60_000L)
   }
-
-  /** R11: the report for the dose at [doseTime], if one was logged since 12 hours before it. */
-  fun reportedTaken(med: Medication, doseTime: Long, events: List<Event>): Event? =
-      events.lastOrNull {
-        it.type == EventType.DOSE_REPORTED_TAKEN &&
-            it.medicationId == med.id &&
-            it.atMillis >= doseTime - 12 * 60 * 60_000L
-      }
 
   /**
    * What Myst says for a stage, one short line each so each passes the guard on its own. Every
@@ -72,9 +40,7 @@ object DoseSchedule {
               if (med.withWater) "Take it with a glass of water." else null,
               if (med.withFood) "Have something to eat first." else null,
           )
-      DoseStage.REREMIND_1, DoseStage.REREMIND_2 ->
-          listOf("Just a reminder, your $name is ready for you" + (where?.let { ", $it." } ?: "."))
-      DoseStage.WINDOW_CLOSED -> emptyList()
+      DoseStage.REREMIND_1, DoseStage.REREMIND_2, DoseStage.WINDOW_CLOSED -> emptyList()
     }
   }
 

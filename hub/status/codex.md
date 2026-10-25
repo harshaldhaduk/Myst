@@ -2,6 +2,12 @@
 
 Updated 2026-10-25.
 
+**Project README slice (2026-10-25)**
+- Shipped: root, judge-facing overview of Myst's three experiences, Meta stack, consent boundaries, and demo path; refreshed the linked Android guide for the current face phrase, assistant-audio route, and reminder preview wording.
+- In flight: none for this documentation slice.
+- Verified on device: no new device check; no app behavior changed.
+- Gaps: the README describes the built prototype and does not establish a new glasses result.
+
 **Historical D29 slice (superseded by D33)**
 - `GlassesTapTrigger` handled Bluetooth media events. D33 removed it after music playback interference and switched the live double-tap recap to DAT Inputs CAPTOUCH Select.
 - Home and start confirmation described double-tap as experimental. The Home backup button remains.

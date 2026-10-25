@@ -138,16 +138,22 @@ class BottleCheck(private val muse: MuseClient) {
               maxTokens = 1500,
           )
     }
+    // The label read sometimes ran out of tokens (finish=length) or found nothing on a first
+    // pass; one retry is cheap next to the photo match, which is the slower call.
     val readCall = async {
-      muse.structured(
-          "bottle-read",
-          READ_SYSTEM,
-          listOf(muse.textPart("Live photo:"), muse.imagePart(photo.jpeg)),
-          "label_read",
-          READ_SCHEMA,
-          reasoningEffort = "low",
-          maxTokens = 1000,
-      )
+      suspend fun read() =
+          muse.structured(
+              "bottle-read",
+              READ_SYSTEM,
+              listOf(muse.textPart("Live photo:"), muse.imagePart(photo.jpeg)),
+              "label_read",
+              READ_SCHEMA,
+              reasoningEffort = "low",
+              maxTokens = 2500,
+          )
+      val first = read()
+      val readable = first is MuseClient.Result.Ok && first.json.optBoolean("label_readable", false)
+      if (readable) first else read()
     }
 
     // (a) Photo match.

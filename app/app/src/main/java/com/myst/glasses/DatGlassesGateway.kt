@@ -59,7 +59,7 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
     private const val STREAM_TIMEOUT_MS = 15_000L
     private const val ERROR_SETTLE_MS = 750L
     private const val SPEECH_RESTART_DELAY_MS = 300L
-    private const val MAX_EDGE_PX = 1024
+    private const val MAX_EDGE_PX = 1280
     private const val JPEG_QUALITY = 85
 
     val REAL =
@@ -317,7 +317,7 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
 
       // 3. Camera stream, needed for stream.capturePhoto() (the non-experimental photo path).
       val added =
-          session.addCamera(StreamConfiguration(videoQuality = VideoQuality.MEDIUM, frameRate = 15))
+          session.addCamera(StreamConfiguration(videoQuality = VideoQuality.HIGH, frameRate = 15))
       val cam = added.getOrNull() ?: return CaptureResult.Failed("Camera: ${added.describeError()}")
       camera = cam
       // Subscribe to errors before start() so a failed start is reported now, not at the timeout.

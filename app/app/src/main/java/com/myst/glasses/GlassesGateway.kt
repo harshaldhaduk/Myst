@@ -36,7 +36,7 @@ sealed interface GlassesState {
   data object Registering : GlassesState
   /** Registered with the Meta AI app but no glasses connected. */
   data object Disconnected : GlassesState
-  data class Connected(val deviceCount: Int) : GlassesState
+  data class Connected(val deviceCount: Int, val batteryLevel: Int? = null) : GlassesState
   /** A capture session is open right now. */
   data object Capturing : GlassesState
 }

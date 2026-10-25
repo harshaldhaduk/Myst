@@ -227,7 +227,8 @@ private fun Orb(on: Boolean, enabled: Boolean, onToggle: (Boolean) -> Unit) {
 private fun GlassesPill(glasses: GlassesState) {
   val (text, dot) =
       when (glasses) {
-        is GlassesState.Connected -> "Glasses on" to Myst.Leaf
+        is GlassesState.Connected ->
+            (glasses.batteryLevel?.let { "Glasses on · $it%" } ?: "Glasses on") to Myst.Leaf
         GlassesState.Capturing -> "Taking photo" to Myst.LilacStrong
         GlassesState.Registering -> "Connecting" to Myst.LilacStrong
         GlassesState.Disconnected -> "Not connected" to Myst.Blush
@@ -283,7 +284,7 @@ private fun GlassesCard(
           GlassesState.Registering -> "Finish connecting in the Meta AI app."
           GlassesState.Disconnected -> "Myst is set up. Put the glasses on and make sure they're connected in the Meta AI app."
           is GlassesState.Connected ->
-              "Connected to ${glasses.deviceCount} pair${if (glasses.deviceCount == 1) "" else "s"} of glasses."
+              "Connected to ${glasses.deviceCount} pair${if (glasses.deviceCount == 1) "" else "s"} of glasses. Battery ${glasses.batteryLevel?.let { "$it%" } ?: "unavailable"}."
           GlassesState.Capturing -> "Taking a photo…"
         },
         style = MaterialTheme.typography.bodyMedium,

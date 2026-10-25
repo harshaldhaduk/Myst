@@ -10,6 +10,8 @@ Read this before any technical work. It is the platform reference for D3/D5 (Met
 - **[Unknown]** Not found. Resolve on the device or with Meta before relying on it.
 - **[Verified on device]** Ran on our phone and glasses; the full list is `AGENTS.md` "Verified implementation facts".
 
+DAT 1.0.1 exposes `Device.batteryLevel` through `Wearables.devicesMetadata[id]` as a live `StateFlow` (Meta's Android SDK changelog, 1.0.0; confirmed in the pinned 1.0.1 library). The Home display uses this value for a single connected pair; its behavior on our glasses has not been checked. [Docs and SDK, not verified on device]
+
 ## 0. Read this first
 
 1. **The camera is reachable only through the Wearables Device Access Toolkit (DAT)** on a phone app. Meta says only DAT can use the glasses' camera or capture mic audio; Web Apps and Connectors cannot. [Docs]
@@ -86,7 +88,7 @@ A device that meets the minimums can still return `DeviceSessionError.CAPABILITY
 - Standalone high-quality capture via `camera.photo` (stop any stream first, wait for `PhotoState.STARTED`). **Experimental, not for production publishing.**
 - Cleanup order: `camera.stop()`, `session.removeCamera()`, `session.stop()` (`removeCamera` confirmed in the 1.0.1 library by javap).
 - Stream at MEDIUM/15 fps then `capturePhoto()` delivered glasses photos to Myst (76 and 102 KB JPEG). Capture time not timed. [Verified on device]
-- Bluetooth bandwidth, real latency, battery and thermal behavior: not documented on pages read. [Unknown] LOOP.md quotes a downscale rule from search results; confirm on the camera guide. [Docs]
+- Bluetooth bandwidth, real latency, battery life and thermal behavior under Myst: not measured. DAT reports battery level, but this does not establish runtime. [Unknown] LOOP.md quotes a downscale rule from search results; confirm on the camera guide. [Docs]
 
 ### 3.6 Audio
 

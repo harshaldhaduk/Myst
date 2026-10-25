@@ -3,6 +3,7 @@
 Updated 02:35 by Claude Code
 
 **Shipped** (on `main`, pushed: ef9d32c, 7aeed51, efc2270)
+- Glasses battery UI: Home observes DAT 1.0.1 device metadata for one connected pair and displays a valid percentage in the status pill and Glasses card; otherwise the card says battery unavailable. Built in an isolated worktree so the D25 conversation spike changes in the shared checkout are untouched.
 - Hub docs brought up to date (D23); decisions D20-D23 Proposed.
 - D21: `MockIdentity` removed; hedged matches ("I think that's Daniel, your son."); "I can't check right now" on Muse/network/key failure; "I can't see right now" on capture failure; "Face recognition isn't set up on this phone." when the build has no face ID; guarded fallback lines instead of silence; reference photos read off the main thread; 150 ms earcon (OS audio) after every trigger.
 - D22: Muse key no longer in `BuildConfig`; `scripts/provision-muse-key.sh` + `core/secrets/MuseKeyStore.kt` (Android Keystore AES/GCM).
@@ -16,6 +17,7 @@ Updated 02:35 by Claude Code
 - 02:20: efc2270 installed on the S23 Ultra with `adb install -r`; family data intact (screenshot check). Nothing else run on the device yet: no reminder fired, no trigger, no Muse key provisioning.
 
 **Gaps**
+- Battery percentage has not been checked against the real glasses; the UI reading is not a battery-life measurement.
 - Stranger, no-face and failure trials (gate A4, E2) after D21 lands.
 - Rotate the old Muse key if any APK built before D22 was shared.
 

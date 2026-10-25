@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -91,17 +92,34 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
     monitoring = true
     scope.launch {
       combine(Wearables.registrationState, Wearables.devices) { reg, devices -> reg to devices }
-          .collect { (reg, devices) ->
-            if (_state.value == GlassesState.Capturing) return@collect
-            _state.value =
-                when (reg) {
-                  RegistrationState.REGISTERED,
-                  RegistrationState.UNREGISTERING ->
-                      if (devices.isEmpty()) GlassesState.Disconnected
-                      else GlassesState.Connected(devices.size)
-                  RegistrationState.REGISTERING -> GlassesState.Registering
-                  else -> GlassesState.Unregistered
+          .collectLatest { (reg, devices) ->
+            val connected = reg == RegistrationState.REGISTERED || reg == RegistrationState.UNREGISTERING
+            if (!connected || devices.isEmpty()) {
+              if (_state.value != GlassesState.Capturing) {
+                _state.value =
+                    when (reg) {
+                      RegistrationState.REGISTERED,
+                      RegistrationState.UNREGISTERING -> GlassesState.Disconnected
+                      RegistrationState.REGISTERING -> GlassesState.Registering
+                      else -> GlassesState.Unregistered
+                    }
+              }
+              return@collectLatest
+            }
+
+            // A single connected pair has one unambiguous battery reading.
+            val metadata = devices.singleOrNull()?.let { Wearables.devicesMetadata[it] }
+            if (metadata == null) {
+              if (_state.value != GlassesState.Capturing) {
+                _state.value = GlassesState.Connected(devices.size)
+              }
+            } else {
+              metadata.collect { device ->
+                if (_state.value != GlassesState.Capturing) {
+                  _state.value = GlassesState.Connected(devices.size, device.batteryLevel.takeIf { it in 0..100 })
                 }
+              }
+            }
           }
     }
   }

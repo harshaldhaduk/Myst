@@ -29,6 +29,7 @@ Filled from Meta's official docs on 2026-10-24 (detail in `hub/META_SUITE.md`, D
 | Need | Meta status | Demo treatment |
 |---|---|---|
 | Glasses model and developer access | On device: DAT 1.0.1 registers in Developer Mode with blank app id and token; Meta AI app 295.0.0.37.164; Bluetooth name RB Meta 02WM. Marketing model and firmware not recorded (Q1). | Live |
+| Glasses battery level | Built: Home observes DAT 1.0.1 device metadata for one connected pair and shows its reported percentage. If DAT has no valid reading, Home says battery unavailable. Not checked on real glasses. | Live DAT data; device verification pending |
 | Camera frame access | Built: one photo per request (`DatGlassesGateway`, stream MEDIUM/15 fps then `capturePhoto()`). On device: glasses photos saved in Myst; refusals `..._UPDATE_REQUIRED` and `DEVICE_UNAVAILABLE` cleared by reconnecting. Capture timing not measured. | Live; one photo per request |
 | Audio output to wearer | Not a DAT API; Android audio over A2DP. On device: phone audio heard on the glasses (Meta sample, user-confirmed, not timed). | Live |
 | Speech out (text to speech) | No Meta TTS (docs read). Built: Android TextToSpeech (`AndroidTtsSpeaker`), labeled OS speech (D17, Proposed). Myst's TTS heard on the glasses is not recorded. | OS TTS (D17) |
@@ -96,7 +97,7 @@ Priority as written in the source PRD: P0 must work in the live demo, P1 if time
 
 Familiar Faces pieces outside R1-R21 that are not built: the follow-up "What did we talk about last time?" (PROJECT_CONTEXT scene 2, gate A3) and a demo reset. D21 (hedged name, failure wording, guard fallback, earcon) is on `main` since ef9d32c.
 
-Caregiver app (source: four screens; built: two tabs, D19, D24). Home: glasses status, "Start Myst", the last thing Myst said, and a quiet "Backup: Who is this?" text button at the bottom. Setup: Family and Reminders (Places removed). Phone stays quiet when things go right; it buzzes for a missed dose (built, phone notification), blocked double dose or lost glasses connection (not built), one line each.
+Caregiver app (source: four screens; built: two tabs, D19, D24). Home: glasses status with DAT battery percentage when one pair is connected and a valid reading is available, "Start Myst", the last thing Myst said, and a quiet "Backup: Who is this?" text button at the bottom. Setup: Family and Reminders (Places removed). Phone stays quiet when things go right; it buzzes for a missed dose (built, phone notification), blocked double dose or lost glasses connection (not built), one line each.
 
 ## 5. Live, mock, roadmap
 

@@ -29,7 +29,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.myst.core.records.Medication
 import com.myst.core.records.Place
+import androidx.compose.material3.FilterChip
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.myst.core.Capability
+import com.myst.core.Label
 import com.myst.features.meds.BottleCheck
+import com.myst.features.meds.DoseSchedule
 
 // Caregiver setup for Lane 3: rooms and medications. Reference photos come from the glasses photo
 // section above each tab, so they match what the wearer will see.
@@ -137,7 +142,9 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
   var labelName by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }
   var pills by remember { mutableStateOf("1") }
-  var time by remember { mutableStateOf("8:00") }
+  var hour by remember { mutableStateOf("8") }
+  var minuteText by remember { mutableStateOf("00") }
+  var pm by remember { mutableStateOf(false) }
   var window by remember { mutableStateOf("60") }
   var withFood by remember { mutableStateOf(false) }
   var withWater by remember { mutableStateOf(true) }
@@ -151,7 +158,10 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
     labelName = m?.labelName ?: ""
     description = m?.plainDescription ?: ""
     pills = (m?.pillsPerDose ?: 1).toString()
-    time = m?.let { formatMinute(it.doseMinuteOfDay) } ?: "8:00"
+    val dm = m?.doseMinuteOfDay ?: 8 * 60
+    hour = (if (dm / 60 % 12 == 0) 12 else dm / 60 % 12).toString()
+    minuteText = "%02d".format(dm % 60)
+    pm = dm / 60 >= 12
     window = (m?.windowMinutes ?: 60).toString()
     withFood = m?.withFood ?: false
     withWater = m?.withWater ?: true
@@ -160,7 +170,7 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
     storageNote = m?.storageNote ?: ""
   }
 
-  val minute = parseMinute(time)
+  val minute = toMinuteOfDay(hour, minuteText, pm)
   val pillCount = pills.toIntOrNull()
   val windowMin = window.toIntOrNull()
   val valid = labelName.isNotBlank() && minute != null && (pillCount ?: 0) >= 1 && (windowMin ?: 0) >= 1
@@ -177,7 +187,6 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
           modifier = Modifier.weight(1f),
       )
-      OutlinedTextField(time, { time = it }, label = { Text("Time (H:MM)") }, singleLine = true, modifier = Modifier.weight(1f))
       OutlinedTextField(
           window,
           { window = it.filter(Char::isDigit) },
@@ -186,6 +195,26 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
           modifier = Modifier.weight(1f),
       )
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      OutlinedTextField(
+          hour,
+          { hour = it.filter(Char::isDigit).take(2) },
+          label = { Text("Hour") },
+          singleLine = true,
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+          modifier = Modifier.weight(1f),
+      )
+      OutlinedTextField(
+          minuteText,
+          { minuteText = it.filter(Char::isDigit).take(2) },
+          label = { Text("Minute") },
+          singleLine = true,
+          keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+          modifier = Modifier.weight(1f),
+      )
+      FilterChip(selected = !pm, onClick = { pm = false }, label = { Text("AM") })
+      FilterChip(selected = pm, onClick = { pm = true }, label = { Text("PM") })
     }
     Text(
         "Myst says the pill count exactly as entered and never gives dosing advice.",
@@ -238,10 +267,28 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
       }
       if (editing != null) OutlinedButton(onClick = { load(null) }) { Text("Cancel") }
     }
-    if (minute == null) Text("Time must look like 8:00 or 20:30.", color = MaterialTheme.colorScheme.error)
+    if (minute == null) Text("Hour 1-12 and minute 00-59.", color = MaterialTheme.colorScheme.error)
   }
 
   Section("Medications (${ui.medications.size})") {
+    val fast by viewModel.fastDemo.collectAsStateWithLifecycle()
+    CapabilityRow(
+        Capability(
+            "Dose reminders",
+            Label.LIVE,
+            "Android alarms + notification + spoken on the glasses. Re-remind at +10/+20 min, " +
+                "caregiver alert when the window closes (on this phone; WhatsApp is a mock, Q13).",
+        ),
+    )
+    SwitchRow("Fast demo timing (re-remind +1/+2 min, window 3 min)", fast) { viewModel.setFastDemo(it) }
+    if (!viewModel.exactAlarmsAllowed()) {
+      Text(
+          "Exact alarms are off for Myst, so reminders may be a few minutes late. Turn on " +
+              "Settings > Apps > Myst > Alarms & reminders.",
+          color = MaterialTheme.colorScheme.error,
+          style = MaterialTheme.typography.bodySmall,
+      )
+    }
     if (ui.medications.isEmpty()) Text("No medications yet.")
     ui.medications.sortedBy { it.doseMinuteOfDay }.forEach { med ->
       val food = ui.places.firstOrNull { it.id == med.foodPlaceId }?.name
@@ -250,7 +297,7 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
         Column(Modifier.weight(1f)) {
           Text(med.labelName, fontWeight = FontWeight.SemiBold)
           Text(
-              "${formatMinute(med.doseMinuteOfDay)} · ${med.pillsPerDose} pill${if (med.pillsPerDose == 1) "" else "s"} · " +
+              "${DoseSchedule.formatTime(med.doseMinuteOfDay)} · ${med.pillsPerDose} pill${if (med.pillsPerDose == 1) "" else "s"} · " +
                   "within ${med.windowMinutes} min",
               style = MaterialTheme.typography.bodySmall,
           )
@@ -264,9 +311,23 @@ fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle:
               style = MaterialTheme.typography.bodySmall,
           )
           Text("${med.bottlePhotoFiles.size} bottle photo(s)", style = MaterialTheme.typography.bodySmall)
+          val dose = DoseSchedule.currentDoseTime(med, System.currentTimeMillis())
+          val taken = DoseSchedule.reportedTaken(med, dose, ui.events)
+          Text(
+              taken?.let { "Reported taken at ${DoseSchedule.formatTimeOfDay(it.atMillis)}" }
+                  ?: "Next: ${DoseSchedule.formatTimeOfDay(dose)}, not reported taken",
+              style = MaterialTheme.typography.bodySmall,
+              fontWeight = FontWeight.SemiBold,
+          )
         }
-        OutlinedButton(onClick = { load(med) }) { Text("Edit") }
-        OutlinedButton(onClick = { viewModel.deleteMedication(med) }) { Text("Delete") }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          OutlinedButton(onClick = { load(med) }) { Text("Edit") }
+          OutlinedButton(onClick = { viewModel.deleteMedication(med) }) { Text("Delete") }
+        }
+      }
+      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(onClick = { viewModel.remindNow(med) }) { Text("Remind now (demo)") }
+        OutlinedButton(onClick = { viewModel.markTaken(med) }) { Text("Reported taken") }
       }
       PhotoStrip(med.bottlePhotoFiles, viewModel)
     }
@@ -328,11 +389,9 @@ private fun PhotoStrip(files: List<String>, viewModel: EnrollViewModel) {
   }
 }
 
-internal fun parseMinute(text: String): Int? {
-  val m = Regex("""^\s*(\d{1,2}):(\d{2})\s*$""").find(text) ?: return null
-  val h = m.groupValues[1].toInt()
-  val min = m.groupValues[2].toInt()
-  return if (h in 0..23 && min in 0..59) h * 60 + min else null
+/** 12-hour entry to minutes after midnight; 12 AM is midnight, 12 PM is noon. */
+internal fun toMinuteOfDay(hour: String, minute: String, pm: Boolean): Int? {
+  val h = hour.toIntOrNull()?.takeIf { it in 1..12 } ?: return null
+  val m = minute.toIntOrNull()?.takeIf { it in 0..59 } ?: return null
+  return ((h % 12) + if (pm) 12 else 0) * 60 + m
 }
-
-internal fun formatMinute(minuteOfDay: Int): String = "%d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)

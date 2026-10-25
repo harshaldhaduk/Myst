@@ -1,6 +1,8 @@
 # rjpaidi · Lanes 2-4: identity, medication routine, caregiver setup (+ glasses capture path)
 
-Updated 19:06 by Claude Code
+Updated 22:45 by Claude Code
+
+**Code lives on branch `rjpaidi/glasses-enroll`** (not merged to main yet). RJ and Claude Code are actively working Lanes 2-4, including **Lane 3 Medication Routine**; please coordinate before starting on those files.
 
 Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 1. Coordinate before merging; if kchperla's spike lands first, swap its code in behind `GlassesGateway`.
 
@@ -15,6 +17,9 @@ Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 
 - Real glasses (18:16): Listening started on the glasses (`speech start response: RESPONSE_STATUS_OK`) and the screen showed `Spoke: "krishna, your son."` with MockIdentity. Earlier attempts 18:15:49-18:16:06 failed with `START_ERROR_DEVICE_UNAVAILABLE`. Whether the voice phrase or the button triggered it, the capture light and audio on the glasses are not yet confirmed by the user.
 - `MuseClient` (HttpURLConnection, Chat Completions, json_schema, reasoning_effort minimal, 15 s timeout, logs task/latency/outcome only) and a real `MuseIdentity` (live photo + enrolled glasses reference photos, `{match_id, confidence}`, threshold 0.85, else "not sure"). Compiled only behind D12: `myst.allowFaceId=true` in `app/local.properties` plus a key in `.env`. Not run: no key on this Mac and D12 not yet accepted.
 - Lane 3 slice 1: `Place`, `Medication`, `Event` in the shared schema; `HouseholdStore` (app-private, no backup, photos deleted with records); Family / Medications / Places tabs; glasses photos attach as bottle and room references; "take with food" links to a food place (Kitchen by default). Verified on emulator + Mock Device Kit (Kitchen with 1 photo; Metformin with food -> Kitchen, 1 bottle photo).
+- Lane 3 bottle test: "What bottle is this?" = Muse photo match against bottle reference photos + separate label read; names a bottle only if both agree and photo match >= 0.9 (D14). Request formats checked against Muse with a no-label image; not yet run on real bottles.
+- Lane 3 reminders: AlarmManager per medication (exact when allowed), notification + speech on the glasses at dose time ("let's go to the kitchen first" when with food), re-remind +10/+20 min, missed-dose caregiver alert at window close (on-phone notification; WhatsApp mock, Q13), "Reported taken" button with double-dose block (R11), "Remind now" demo control (R15) and fast demo timing, AM/PM time entry, reschedule at boot. Emulator: reminder notification + TTS fired and +1/+2/+3 min alarms queued exactly.
+- Stores now fsync on write and set aside unreadable files as `.corrupt` (found when an emptied file crashed the boot receiver).
 - Live/Mock/Experimental labels in code (`core/Capability.kt`) and on screen.
 
 **Verified**
@@ -39,7 +44,7 @@ Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 
 - The Mock Device Kit refuses to stream without `setCameraFeed(...)` ("No camera source configured"), even for a single photo. The feed is Meta's `plant.mp4` sample clip in `app/app/src/debug/assets` (debug builds only).
 
 **In flight**
-- Lane 3 Medication Routine (claimed 18:55): slice 1 records (Place, Medication, Event) and caregiver setup tabs; then routine state machine + tests, glasses wiring, bottle check (reference match + label read), room/food/water checks.
+- Lane 3 Medication Routine (claimed 18:55, RJ + Claude Code): done so far: records, setup tabs, bottle test, reminders. Next: routine state machine + tests (needs D13), voice "Done"/"Is this right?", room/food/water checks (D15). Was: slice 1 records (Place, Medication, Event) and caregiver setup tabs; then routine state machine + tests, glasses wiring, bottle check (reference match + label read), room/food/water checks.
 
 **Blocked, or need from someone**
 - Real-glasses run: needs the S23 Ultra and glasses (kchperla) or another Android phone. This Mac has no Android phone attached.

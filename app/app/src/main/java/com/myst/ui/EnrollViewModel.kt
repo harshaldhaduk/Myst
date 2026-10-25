@@ -16,7 +16,12 @@ import com.myst.core.records.PhotoSource
 import com.myst.BuildConfig
 import com.myst.core.guard.ResponseGuard
 import com.myst.features.faces.FamiliarFaces
+import com.myst.core.records.Event
+import com.myst.core.records.EventType
 import com.myst.features.meds.BottleCheck
+import com.myst.features.meds.DoseReminders
+import com.myst.features.meds.DoseSchedule
+import java.util.UUID
 import com.myst.features.faces.IdentityProvider
 import com.myst.features.faces.MuseIdentity
 import com.myst.muse.MuseClient
@@ -53,6 +58,7 @@ data class EnrollUiState(
     val needsGlassesUpdate: Boolean = false,
     val places: List<Place> = emptyList(),
     val medications: List<Medication> = emptyList(),
+    val events: List<Event> = emptyList(),
     val checkingBottle: Boolean = false,
     val lastBottle: BottleCheckView? = null,
 )
@@ -105,6 +111,49 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   init {
     refreshPeople()
     refreshHousehold()
+    viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
+  }
+
+  // MARK: - Dose reminders
+
+  private val _fastDemo = MutableStateFlow(DoseReminders.fastDemo(application))
+  val fastDemo: StateFlow<Boolean> = _fastDemo.asStateFlow()
+
+  fun setFastDemo(on: Boolean) {
+    DoseReminders.setFastDemo(getApplication(), on)
+    _fastDemo.value = on
+    viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
+  }
+
+  fun exactAlarmsAllowed(): Boolean = DoseReminders.canScheduleExact(getApplication())
+
+  /** R15 demo control: the reminder now, with re-reminders timed from now. */
+  fun remindNow(med: Medication) {
+    viewModelScope.launch(Dispatchers.IO) { DoseReminders.remindNow(getApplication(), med) }
+    _ui.update { it.copy(message = "Reminder for ${med.labelName} fired now.") }
+  }
+
+  /** R11/R12: log "reported taken" (D6), unless this dose was already reported. */
+  fun markTaken(med: Medication) {
+    viewModelScope.launch {
+      val now = System.currentTimeMillis()
+      val already =
+          withContext(Dispatchers.IO) {
+            val dose = DoseSchedule.currentDoseTime(med, now)
+            DoseSchedule.reportedTaken(med, dose, household.events())
+                ?: household.log(
+                    Event(UUID.randomUUID().toString(), EventType.DOSE_REPORTED_TAKEN, now, medicationId = med.id, detail = "marked on phone"),
+                ).let { null }
+          }
+      _ui.update {
+        it.copy(
+            message =
+                already?.let { e -> "Already reported taken at ${DoseSchedule.formatTimeOfDay(e.atMillis)}. Not logged again." }
+                    ?: "${med.labelName}: reported taken at ${DoseSchedule.formatTimeOfDay(now)}.",
+        )
+      }
+      refreshHousehold()
+    }
   }
 
   // MARK: - Places and medications (Lane 3 setup)
@@ -140,7 +189,10 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     if (draft.labelName.isBlank() || draft.pillsPerDose < 1) return
     val photos = takePendingPhoto(attachPhoto)
     viewModelScope.launch {
-      val med = withContext(Dispatchers.IO) { household.saveMedication(draft, photos) }
+      val med =
+          withContext(Dispatchers.IO) {
+            household.saveMedication(draft, photos).also { DoseReminders.rescheduleAll(getApplication()) }
+          }
       _ui.update {
         it.copy(
             pending = if (photos.isNotEmpty()) null else it.pending,
@@ -153,7 +205,10 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   fun deleteMedication(med: Medication) {
     viewModelScope.launch {
-      withContext(Dispatchers.IO) { household.deleteMedication(med.id) }
+      withContext(Dispatchers.IO) {
+        DoseReminders.cancel(getApplication(), med.id)
+        household.deleteMedication(med.id)
+      }
       _ui.update { it.copy(message = "Removed ${med.labelName} and its photos.") }
       refreshHousehold()
     }
@@ -220,8 +275,9 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   private fun refreshHousehold() {
     viewModelScope.launch {
-      val (places, meds) = withContext(Dispatchers.IO) { household.places() to household.medications() }
-      _ui.update { it.copy(places = places, medications = meds) }
+      val (places, meds, events) =
+          withContext(Dispatchers.IO) { Triple(household.places(), household.medications(), household.events()) }
+      _ui.update { it.copy(places = places, medications = meds, events = events) }
     }
   }
 

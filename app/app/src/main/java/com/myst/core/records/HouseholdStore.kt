@@ -1,9 +1,12 @@
 package com.myst.core.records
 
 import android.content.Context
+import android.util.Log
 import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 /**
@@ -89,16 +92,34 @@ class HouseholdStore(context: Context) {
         "$ownerId-${UUID.randomUUID()}.jpg".also { File(photos, it).writeBytes(bytes) }
       }
 
-  private fun <T> read(name: String, parse: (JSONObject) -> T): List<T> {
-    val f = File(dir, name)
-    if (!f.exists()) return emptyList()
-    val a = JSONArray(f.readText())
-    return (0 until a.length()).map { parse(a.getJSONObject(it)) }
-  }
+  private fun <T> read(name: String, parse: (JSONObject) -> T): List<T> =
+      readJsonArray(File(dir, name)).let { a -> (0 until a.length()).map { parse(a.getJSONObject(it)) } }
 
-  private fun <T> write(name: String, items: List<T>, toJson: (T) -> JSONObject) {
-    val tmp = File(dir, "$name.tmp")
-    tmp.writeText(JSONArray().apply { items.forEach { put(toJson(it)) } }.toString())
-    tmp.renameTo(File(dir, name))
+  private fun <T> write(name: String, items: List<T>, toJson: (T) -> JSONObject) =
+      writeJsonArray(File(dir, name), JSONArray().apply { items.forEach { put(toJson(it)) } })
+}
+
+/**
+ * Reads a JSON array file. An unreadable file (for example left empty by a power loss) is moved
+ * aside as `.corrupt` and treated as empty, so the app keeps running; nothing is silently deleted.
+ */
+internal fun readJsonArray(file: File): JSONArray {
+  if (!file.exists()) return JSONArray()
+  return try {
+    JSONArray(file.readText())
+  } catch (e: JSONException) {
+    Log.w("Myst:Store", "${file.name} unreadable, kept as ${file.name}.corrupt")
+    file.renameTo(File(file.parentFile, "${file.name}.corrupt"))
+    JSONArray()
   }
+}
+
+/** Writes to a temp file, forces it to disk, then swaps it in, so a crash never leaves it empty. */
+internal fun writeJsonArray(file: File, array: JSONArray) {
+  val tmp = File(file.parentFile, "${file.name}.tmp")
+  FileOutputStream(tmp).use { out ->
+    out.write(array.toString().toByteArray())
+    out.fd.sync()
+  }
+  tmp.renameTo(file)
 }

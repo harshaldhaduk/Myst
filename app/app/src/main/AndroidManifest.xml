@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Dose reminders (Android host OS): alarms, survive reboot, notifications. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- allowBackup=false keeps enrolled photos and names out of cloud backups (identity data stays on the phone). -->
     <application
         android:allowBackup="false"
@@ -45,5 +50,12 @@
                 <data android:scheme="myst" />
             </intent-filter>
         </activity>
+
+        <receiver android:name=".features.meds.DoseAlarmReceiver" android:exported="false" />
+        <receiver android:name=".features.meds.DoseBootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

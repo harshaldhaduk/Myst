@@ -2,11 +2,13 @@ package com.myst
 
 import android.Manifest.permission.BLUETOOTH
 import android.Manifest.permission.BLUETOOTH_CONNECT
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.viewModels
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.types.Permission
@@ -25,7 +27,11 @@ class MainActivity : ComponentActivity() {
   private val androidPermissions =
       registerForActivityResult(RequestMultiplePermissions()) { result ->
         viewModel.onAndroidPermissions(result.values.all { it })
+        // Asked separately so declining notifications never blocks the glasses.
+        notificationPermission.launch(POST_NOTIFICATIONS)
       }
+
+  private val notificationPermission = registerForActivityResult(RequestPermission()) {}
 
   // Glasses permissions are granted in the Meta AI app; this bridges its result back to a suspend call.
   private var permissionContinuation: CancellableContinuation<PermissionStatus>? = null

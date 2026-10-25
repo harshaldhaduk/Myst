@@ -18,8 +18,7 @@ class PeopleStore(context: Context) {
 
   @Synchronized
   fun all(): List<Person> {
-    if (!index.exists()) return emptyList()
-    val arr = JSONArray(index.readText())
+    val arr = readJsonArray(index)
     return (0 until arr.length()).map { Person.fromJson(arr.getJSONObject(it)) }
   }
 
@@ -59,8 +58,6 @@ class PeopleStore(context: Context) {
   fun photo(person: Person): File? = person.photoFile?.let { File(dir, it) }?.takeIf { it.exists() }
 
   private fun write(people: List<Person>) {
-    val tmp = File(dir, "people.json.tmp")
-    tmp.writeText(JSONArray().apply { people.forEach { put(it.toJson()) } }.toString())
-    tmp.renameTo(index)
+    writeJsonArray(index, JSONArray().apply { people.forEach { put(it.toJson()) } })
   }
 }

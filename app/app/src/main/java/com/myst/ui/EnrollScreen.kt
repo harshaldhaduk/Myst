@@ -52,6 +52,7 @@ import com.myst.core.records.PhotoSource
 import com.myst.core.records.VisitMemory
 import com.myst.features.VoiceCommands
 import com.myst.glasses.GlassesState
+import com.myst.glasses.GlassesTapTrigger
 
 @Composable
 fun EnrollScreen(
@@ -63,10 +64,12 @@ fun EnrollScreen(
     onListening: (Boolean) -> Unit,
     onOpenGlassesUpdate: () -> Unit,
     onCheckBottle: () -> Unit,
+    onTapTrigger: (Boolean) -> Unit,
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val listening by viewModel.gateway.isListening.collectAsStateWithLifecycle()
   val autoIdentify by viewModel.autoIdentify.collectAsStateWithLifecycle()
+  val tapOn by viewModel.tapOn.collectAsStateWithLifecycle()
   val glasses by viewModel.gateway.state.collectAsStateWithLifecycle()
   val camera by viewModel.gateway.capability.collectAsStateWithLifecycle()
   var mockOn by rememberSaveable { mutableStateOf(false) }
@@ -231,12 +234,14 @@ fun EnrollScreen(
             }
           }
         }
-        OutlinedButton(onClick = viewModel::loadDemoData) { Text("Load demo data (fictional)") }
-        Text(
-            "DEMO: adds Daniel (son) and Emily (granddaughter) with one memory and an earlier sighting each. " +
-                "No photos, so recognize them with the mock identity picker above.",
-            style = MaterialTheme.typography.bodySmall,
-        )
+        CapabilityRow(GlassesTapTrigger.capability)
+        Row(
+            Modifier.toggleable(value = tapOn, role = Role.Switch, onValueChange = onTapTrigger),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Switch(tapOn, onCheckedChange = null)
+          Text("  Tap the glasses to ask \"Who is this?\" (silent)", Modifier.weight(1f))
+        }
         CapabilityRow(VoiceCommands.capability)
         Row(verticalAlignment = Alignment.CenterVertically) {
           Switch(

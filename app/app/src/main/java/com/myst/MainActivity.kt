@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
           onListening = { on -> viewModel.setListening(on, ::requestWearablesPermission) },
           onOpenGlassesUpdate = { viewModel.openGlassesUpdate(this) },
           onCheckBottle = { viewModel.checkBottle(::requestWearablesPermission) },
+          onTapTrigger = { on -> viewModel.setTapTrigger(on, ::requestWearablesPermission) },
       )
     }
   }

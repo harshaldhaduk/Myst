@@ -32,6 +32,7 @@ import com.myst.features.faces.WhisperResult
 import com.myst.features.VoiceCommands
 import com.myst.glasses.AndroidTtsSpeaker
 import com.myst.glasses.CaptureResult
+import com.myst.glasses.GlassesTapTrigger
 import com.myst.glasses.CaptureTimings
 import com.myst.glasses.DatGlassesGateway
 import com.myst.glasses.MockGlassesKit
@@ -338,41 +339,25 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     }
   }
 
+  // MARK: - Glasses tap trigger (silent "Who is this?")
+
+  private var tapTrigger: GlassesTapTrigger? = null
+  private val _tapOn = MutableStateFlow(false)
+  val tapOn: StateFlow<Boolean> = _tapOn.asStateFlow()
+
+  fun setTapTrigger(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
+    tapTrigger?.stop()
+    tapTrigger = null
+    if (on) {
+      tapTrigger = GlassesTapTrigger(getApplication()) { whoIsThis(requestPermission) }.also { it.start() }
+    }
+    _tapOn.value = on
+    _ui.update { it.copy(message = if (on) "Tap the glasses to ask \"Who is this?\"" else "Glasses tap off.") }
+  }
+
   /** MOCK: makes the simulated glasses "hear" the phrase. Mock Device Kit only. */
   fun simulateWhoIsThis() {
     mockKit.simulateSpeech("Who is this?")?.let { f -> _ui.update { it.copy(message = f) } }
-  }
-
-  /**
-   * DEMO CONTROL: fictional household for rehearsal (Margaret wears the glasses, Robert is the
-   * caregiver). Daniel and Emily get one caregiver-written memory and an earlier sighting. No
-   * photos, so they are only recognized through the mock identity picker. Skips names already enrolled.
-   */
-  fun loadDemoData() {
-    viewModelScope.launch(Dispatchers.IO) {
-      val have = store.all().map { it.name.lowercase() }.toSet()
-      val demo =
-          listOf(
-              Triple("Daniel", "son", "You both love walking in the park." to 5),
-              Triple("Emily", "granddaughter", "Emily drew you a picture of the lake." to 26),
-          )
-      var added = 0
-      demo.filter { it.first.lowercase() !in have }.forEach { (name, relation, memoryAndHours) ->
-        val (memory, hoursAgo) = memoryAndHours
-        val p =
-            store.enroll(name, relation, "Robert (demo data)", null, null, listOf(Memory(memory, "Robert (demo data)")))
-        household.logSighting(
-            p.id,
-            System.currentTimeMillis() - hoursAgo * 3_600_000L,
-            "DEMO backfill",
-            force = true,
-        )
-        added++
-      }
-      refreshPeople()
-      refreshHousehold()
-      _ui.update { it.copy(message = if (added > 0) "Loaded $added fictional family members (demo data)." else "Demo data already loaded.") }
-    }
   }
 
   /** DEMO CONTROL: pretend this person was last recognized [hoursAgo] hours ago (labeled DEMO in the log). */
@@ -405,6 +390,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   }
 
   override fun onCleared() {
+    tapTrigger?.stop()
     gateway.stopListening()
     speaker.shutdown()
     super.onCleared()

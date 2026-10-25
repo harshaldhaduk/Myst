@@ -221,7 +221,7 @@ The follow-up “What did we talk about last time?” and the D25 nudge are unbu
 |---|---|---|---|
 | H1 | FAIL | No script or video yet. | Lane 5: write the 25-30 s opening. |
 | H2 | FAIL | No demo clip of Margaret turning to Daniel. | Lane 5: film after E2 runs. |
-| H3 | PENDING | Built: stored person memories -> FamiliarFaces -> ResponseGuard. D30 adds labeled fictional Krishna/RJ context; a scripted demo story is not evidence of a recorded real conversation. No real-device source-to-output trace for this build. | Lane 2: verify both requested subjects, source labels, and the guarded spoken output. |
+| H3 | PENDING | Built: stored person memories -> FamiliarFaces -> ResponseGuard. D30 adds fictional Krishna/RJ context (D32 uses neutral saved-context labels in the app); a scripted demo story is not evidence of a recorded real conversation. No real-device source-to-output trace for this build. | Lane 2: verify both requested subjects, stored source attribution, and the guarded spoken output. |
 | H4 | PENDING | Built: DAT Speech phrase, experimental double-tap via Bluetooth media events (next/previous now handled; physical flow not yet verified; single tap is DAT pause/resume), quiet Home backup control. On 2026-10-25 the backup produced an audible unsure line through the glasses (user report, `hub/status/mayank.md`); spoken trigger remained intermittent. | Lane 2: record an uninterrupted wearer-initiated glasses-triggered run. |
 | H5 | PENDING | Built: Setup > Family (consent, memories add/delete/reorder, revoke deletes record, photo, visits). Revoke not re-checked on a phone with the D19 build. | Lane 4: revoke-then-ask test on the phone. |
 | H6 | FAIL | No judge-facing statement or clip. | Lane 5. |

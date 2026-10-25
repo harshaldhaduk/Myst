@@ -21,7 +21,7 @@ Debug builds add one fictional demo memory to already enrolled profiles named Kr
 
 After a confident match, Myst speaks the enrolled name/relationship and both sentences through the existing 40-word guard. This bundle takes priority over the generated last-recognized timestamp and ordinary memory rotation. A long relationship falls back to name plus context. Real VISIT records are still logged normally; these stories do not create them.
 
-Family labels the bundle “Demo context” with author “Demo seed (fictional)”; Home labels the spoken answer as scripted. Delete the seed in Family to return to ordinary memories. Deletion survives restarts, and other profiles are unchanged. The seed is separate from the five caregiver-memory slots. Source text lives in `core/records/DemoMemories.kt`; these are demo details, not verified facts about the participants.
+Family labels the bundle “Shared context” / “Saved context”; Home shows “Saved relationship context.” (D32). The internal provenance marker remains compatible with existing saved records. Delete the seed in Family to return to ordinary memories. Deletion survives restarts, and other profiles are unchanged. The seed is separate from the five caregiver-memory slots. Source text lives in `core/records/DemoMemories.kt`; these are demo details, not verified facts about the participants.
 
 ## Build
 

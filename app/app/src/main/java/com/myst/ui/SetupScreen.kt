@@ -228,7 +228,7 @@ private fun PersonCard(
     }
 
     SmallLabel(
-        if (hasDemoContext) "Fictional demo context is spoken each time. Delete it to use other memories."
+        if (hasDemoContext) "Shared context is included each time. Delete it to use other memories."
         else if (person.memories.isEmpty()) "Add a memory she'll hear after their name"
         else "Memories: the first is said first, then they take turns",
     )
@@ -240,10 +240,13 @@ private fun PersonCard(
             Text(m.text, style = MaterialTheme.typography.bodyLarge)
             Row(verticalAlignment = Alignment.CenterVertically) {
               if (DemoMemories.isDemo(m) || (i == 0 && !hasDemoContext)) {
-                Tag(if (DemoMemories.isDemo(m)) "Demo context" else "Said first", Myst.Blush)
+                Tag(if (DemoMemories.isDemo(m)) "Shared context" else "Said first", Myst.Blush)
                 Spacer(Modifier.width(8.dp))
               }
-              Text("by ${m.author}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
+              Text(
+                  if (DemoMemories.isDemo(m)) "Saved context" else "by ${m.author}",
+                  Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft,
+              )
               if (i > 0 && !hasDemoContext) QuietButton("Say first", { onMakeFirst(i) }, color = Myst.Ink)
               QuietButton("Delete", { onRemoveMemory(i) })
             }

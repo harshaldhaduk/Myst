@@ -185,3 +185,8 @@ When the team answers one, delete it here and log the answer below as a decision
 **Decision:** Raise the spoken-answer word limit from 20 to 40 words. ResponseGuard, visit composition and memory-entry validation use the shared limit; update user-facing guidance and active specs. Other source, identity, uncertainty and dignity checks remain unchanged.
 **Why:** The user explicitly instructed, “there is no need for a 20 word guard, make it 40”. This supersedes earlier decisions' 20-word references, including D18 and D30.
 **Affects:** ResponseGuard, FamiliarFaces comments, EnrollViewModel guidance, PRD R2, app README, platform diagram, Codex status and validation. Teammates' old status entries describe prior builds, not the current limit.
+
+### D32 · Proposed · 2026-10-25 · User's direct instruction, recorded by Codex
+**Decision:** Remove demo wording from the app's visible memory UI. Family uses “Shared context” and “Saved context”; the last-answer note uses “Saved relationship context.” Keep the existing internal provenance marker so stored seeds remain identifiable without reseeding or changing their behavior.
+**Why:** The user explicitly asked to remove demo references from the app. This supersedes D30's particular on-screen labels; the repository still documents that the supplied stories are scripted rather than recorded conversations.
+**Affects:** DemoMemories display note, SetupScreen labels/attribution, AGENTS scope note, app README, PRD, H3 ledger and Codex status. Recognition, saved text, 40-word guard, memory deletion and real visit logging are unchanged.

@@ -3,7 +3,7 @@ package com.myst.core.records
 /** User-requested fictional demo context (D30), never evidence of a visit or conversation. */
 object DemoMemories {
   const val AUTHOR = "Demo seed (fictional)"
-  const val SOURCE_NOTE = "Scripted demo memory; not a recorded conversation."
+  const val SOURCE_NOTE = "Saved relationship context."
 
   /** Only enrich an existing enrollment. The persisted marker respects deletion on later starts. */
   fun seed(person: Person): Person {

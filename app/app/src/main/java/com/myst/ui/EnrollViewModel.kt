@@ -21,6 +21,7 @@ import com.myst.core.records.EventType
 import com.myst.features.meds.BottleCheck
 import com.myst.features.meds.DoseReminders
 import com.myst.features.meds.DoseSchedule
+import com.myst.features.meds.MedicineSummary
 import java.util.UUID
 import com.myst.features.faces.IdentityProvider
 import com.myst.features.faces.MuseIdentity
@@ -235,18 +236,25 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
                   }
                 }
             val r = bottleCheck.identify(capture.photo, meds)
-            val line =
+            val lines =
                 when (val v = r.verdict) {
+                  // Name, schedule and food/water rule, all from the caregiver's records (D6).
                   is BottleCheck.Verdict.Identified ->
-                      "That's your ${v.medication.labelName}" +
-                          v.medication.plainDescription.takeIf(String::isNotBlank)?.let { ", $it" }.orEmpty() + "."
-                  BottleCheck.Verdict.Unsure -> "I can't tell which medicine that is. Please turn it so I can see the label."
+                      MedicineSummary.lines(
+                          _ui.value.medications.filter { MedicineSummary.sameProduct(it, v.medication) },
+                      )
+                  BottleCheck.Verdict.Unsure ->
+                      listOf("I can't tell which medicine that is. Please turn it so I can see the label.")
                 }
+            // Each line passes the guard on its own; a blocked line is dropped, never reworded.
             val spoken =
-                when (val d = ResponseGuard.check(line, null, _ui.value.people)) {
-                  is ResponseGuard.Decision.Pass -> d.line.also(speaker::say).text
-                  is ResponseGuard.Decision.Block -> null
-                }
+                lines
+                    .mapNotNull { line ->
+                      (ResponseGuard.check(line, null, _ui.value.people) as? ResponseGuard.Decision.Pass)
+                          ?.line?.also(speaker::say)?.text
+                    }
+                    .joinToString(" ")
+                    .ifEmpty { null }
             BottleCheckView(
                 spoken = spoken,
                 photoMatch =

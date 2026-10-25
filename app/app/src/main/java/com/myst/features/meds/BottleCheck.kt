@@ -176,7 +176,7 @@ class BottleCheck(private val muse: MuseClient) {
                       labeled.firstOrNull { it.first == v.optString("label") }
                           ?.let { it.second.first to v.optDouble("confidence", 0.0) }
                     }
-                    .groupBy { productKey(it.first) }
+                    .groupBy { it.first.labelName.lowercase().replace(Regex("[^a-z0-9]"), "") }
                     .map { (_, list) -> list.maxBy { it.second } }
             "photo match ${r.ms} ms"
           }
@@ -201,7 +201,7 @@ class BottleCheck(private val muse: MuseClient) {
         photoYes.singleOrNull()
             ?.takeIf {
               bottleVisible && it.second >= MATCH_THRESHOLD &&
-                  labelMatch != null && productKey(labelMatch) == productKey(it.first)
+                  labelMatch != null && MedicineSummary.sameProduct(labelMatch, it.first)
             }
             ?.first
     val detail = "$matchDetail, $readDetail"
@@ -220,9 +220,6 @@ class BottleCheck(private val muse: MuseClient) {
         detail = detail,
     )
   }
-
-  /** One product per label name: "VISA" twice (two schedules) is one product. */
-  private fun productKey(med: Medication): String = med.labelName.lowercase().replace(Regex("[^a-z0-9]"), "")
 
   /** The label text names [med] if it contains the first word of the caregiver's label name. */
   private fun nameMatches(med: Medication, labelText: String): Boolean {

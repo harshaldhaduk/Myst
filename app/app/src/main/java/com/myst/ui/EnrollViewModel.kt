@@ -240,7 +240,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
                   is BottleCheck.Verdict.Identified ->
                       "That's your ${v.medication.labelName}" +
                           v.medication.plainDescription.takeIf(String::isNotBlank)?.let { ", $it" }.orEmpty() + "."
-                  BottleCheck.Verdict.Unsure -> "I can't tell which bottle that is. Please turn it so I can see the label."
+                  BottleCheck.Verdict.Unsure -> "I can't tell which medicine that is. Please turn it so I can see the label."
                 }
             val spoken =
                 when (val d = ResponseGuard.check(line, null, _ui.value.people)) {
@@ -250,7 +250,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
             BottleCheckView(
                 spoken = spoken,
                 photoMatch =
-                    if (!r.bottleVisible) "no bottle seen"
+                    if (!r.bottleVisible) "no medicine package seen"
                     else r.photoMatch?.let { "${it.first.labelName} (${"%.2f".format(it.second)})" } ?: "no match",
                 labelRead =
                     r.labelText?.let { "\"$it\"" + (r.labelMatch?.let { m -> " -> ${m.labelName}" } ?: " -> not one of hers") }

@@ -31,19 +31,21 @@ class BottleCheck(private val muse: MuseClient) {
         )
 
     private const val MATCH_SYSTEM =
-        "You help a person with memory loss check which medicine bottle they are holding. The " +
+        "You help a person with memory loss check which of their medicines they are holding. The " +
             "first image is a live photo from their glasses. Each later image is a reference " +
-            "photo of one of their own medicine bottles, labelled M1, M2, ... First say whether a " +
-            "medicine bottle is clearly visible in the live photo. Then, for every reference, " +
-            "judge whether the bottle in the live photo is the same product as in that reference: " +
-            "compare the label design, colours, shape and any readable text, ignoring angle and " +
-            "lighting. Give a confidence from 0 to 1 for each. Answer only with the JSON."
+            "photo of one of their own medicine containers (a bottle, box, blister pack, tube or " +
+            "package), labelled M1, M2, ... First say whether a container or package is clearly " +
+            "visible in the live photo. Then, for every reference, judge whether the item in the " +
+            "live photo is the same product as in that reference: compare the packaging design, " +
+            "colours, shape and any readable text, ignoring angle and lighting. Give a confidence " +
+            "from 0 to 1 for each. Answer only with the JSON."
 
     private const val READ_SYSTEM =
-        "Read the medicine label in this photo. If a medicine bottle label is readable, return " +
-            "the medicine name exactly as printed (with strength if shown). If the label is not " +
-            "readable, set label_readable to false and leave the name empty. Never guess a name " +
-            "that is not printed. Answer only with the JSON."
+        "Read the product name printed on the package or label the person is holding in this " +
+            "photo, exactly as printed (with strength if shown). It may be a bottle, box, blister " +
+            "pack or other package. If no printed name is readable, set label_readable to false " +
+            "and leave the name empty. Never guess a name that is not printed. Answer only with " +
+            "the JSON."
 
     private val MATCH_SCHEMA =
         JSONObject()
@@ -51,7 +53,7 @@ class BottleCheck(private val muse: MuseClient) {
             .put(
                 "properties",
                 JSONObject()
-                    .put("bottle_visible", JSONObject().put("type", "boolean"))
+                    .put("container_visible", JSONObject().put("type", "boolean"))
                     .put(
                         "references",
                         JSONObject()
@@ -72,7 +74,7 @@ class BottleCheck(private val muse: MuseClient) {
                             ),
                     ),
             )
-            .put("required", JSONArray().put("bottle_visible").put("references"))
+            .put("required", JSONArray().put("container_visible").put("references"))
             .put("additionalProperties", false)
 
     private val READ_SCHEMA =
@@ -156,9 +158,10 @@ class BottleCheck(private val muse: MuseClient) {
           null -> "no bottle photos enrolled"
           is MuseClient.Result.Failed -> "photo match failed: ${r.reason}"
           is MuseClient.Result.Ok -> {
-            bottleVisible = r.json.optBoolean("bottle_visible", false)
+            bottleVisible = r.json.optBoolean("container_visible", false)
             val refs = r.json.optJSONArray("references") ?: JSONArray()
-            // A bottle with several reference photos can get several verdicts; keep its best.
+            // Several reference photos, or several schedules of the same product (same label
+            // name), can each say yes; they count as one product. Keep the best per product.
             photoYes =
                 (0 until refs.length())
                     .map { refs.getJSONObject(it) }
@@ -167,7 +170,7 @@ class BottleCheck(private val muse: MuseClient) {
                       labeled.firstOrNull { it.first == v.optString("label") }
                           ?.let { it.second.first to v.optDouble("confidence", 0.0) }
                     }
-                    .groupBy { it.first.id }
+                    .groupBy { productKey(it.first) }
                     .map { (_, list) -> list.maxBy { it.second } }
             "photo match ${r.ms} ms"
           }
@@ -190,7 +193,10 @@ class BottleCheck(private val muse: MuseClient) {
 
     val agreed =
         photoYes.singleOrNull()
-            ?.takeIf { bottleVisible && it.second >= MATCH_THRESHOLD && labelMatch?.id == it.first.id }
+            ?.takeIf {
+              bottleVisible && it.second >= MATCH_THRESHOLD &&
+                  labelMatch != null && productKey(labelMatch) == productKey(it.first)
+            }
             ?.first
     val detail = "$matchDetail, $readDetail"
     Log.i(
@@ -208,6 +214,9 @@ class BottleCheck(private val muse: MuseClient) {
         detail = detail,
     )
   }
+
+  /** One product per label name: "VISA" twice (two schedules) is one product. */
+  private fun productKey(med: Medication): String = med.labelName.lowercase().replace(Regex("[^a-z0-9]"), "")
 
   /** The label text names [med] if it contains the first word of the caregiver's label name. */
   private fun nameMatches(med: Medication, labelText: String): Boolean {

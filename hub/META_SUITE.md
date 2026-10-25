@@ -73,6 +73,7 @@ A device that meets the minimums can still return `DeviceSessionError.CAPABILITY
 
 - `Wearables.startRegistration(activity)` sends the user to the Meta AI app and back; observe `Wearables.registrationState` until `REGISTERED`. Users can unregister any time in the Meta AI app; we can offer `startUnregistration`.
 - Runtime permissions: `Permission.CAMERA` and `Permission.MICROPHONE`, granted in the Meta AI app as "Allow once" or "Allow always", per device. Checks return granted if any connected device approved. Permission requests fail without registration.
+- Myst requests missing DAT microphone and camera grants from Start Myst, in sequence through Meta AI; a spoken face request checks the existing camera grant. This app flow has passed a build but has not been rechecked on glasses. [Built, not verified on device]
 - Inputs needs capability approval in the Developer Center. Voice Invocations needs the Voice Invocation permission, added by creating a new integration version. Motion needs no runtime permission.
 - The user can pause, resume or stop a session by tapping the glasses, taking them off or closing the hinges. Only one session runs per device. [Docs]
 
@@ -99,7 +100,7 @@ A device that meets the minimums can still return `DeviceSessionError.CAPABILITY
 
 ### 3.7 Speech, inputs, motion, voice invocation (all experimental)
 
-- **Touchpad correction (2026-10-25, current Meta Wearables MCP):** during a DAT session without interactive display content, a one-finger single tap pauses/resumes the session and a tap-and-hold stops it; neither reaches the app. Do not use either as a custom trigger. Double-tap is the documented select gesture, with model-dependent mappings. Our Android media-session event history contains Bluetooth `MEDIA_NEXT`; Myst handles next/previous plus play/pause for the experimental Bluetooth fallback. A real double-tap-to-recognition run is still required. [Docs: https://wearables.developer.meta.com/docs/develop/dat/inputs; phone event history inspected, not an end-to-end verification]
+- **Touchpad correction (2026-10-25, current Meta Wearables MCP):** during a DAT session without interactive display content, a one-finger single tap pauses/resumes the session and a tap-and-hold stops it; neither reaches the app. Double-tap is the documented select gesture, with model-dependent mappings. Myst now collects DAT Inputs CAPTOUCH Select. Mayank reported a double-tap producing a spoken Conversation recap; face-recognition double-tap remains untested. The former Android MediaSession fallback was removed after music playback interference. [Docs: https://wearables.developer.meta.com/docs/develop/dat/inputs; user-reported device run in `hub/status/codex.md`]
 
 - **Speech:** `session.addSpeech`, flows for `state`, `locale`, `errors`, `transcriptions` (partial and final). Needs the DAT mic permission, granted from a user action. The README calls it on-device recognition. Where it actually runs and its accuracy are [Unknown]. A Speech session starts on our glasses (`RESPONSE_STATUS_OK`) and ends after about 60 s; that a spoken phrase fired Myst's action is not recorded. [Verified on device, partial]
 - **Inputs:** navigation, button, capture and drag events from the glasses. Needs capability approval in the Developer Center. The earlier "no documented glasses button event" finding in LOOP.md is superseded: the capability exists but is gated. [Docs]
@@ -142,6 +143,8 @@ Rate limits are per team: Spark 3,000 RPM and 4M TPM; Muse Image 150 RPM; Voice 
 
 **D25 device spike:** a debug-only 30-second HFP capture on the S23 Ultra routed to the glasses and sent a WAV to Muse Voice Transcribe; Mayank reported correct transcription of his own taco conversation and a successful DAT photo during HFP. The other speaker was silent in that clip. DAT Speech while HFP is active, second-speaker pickup and timing remain unverified; Spark structured summary returned BAD_ANSWER. No visit feature is built. [Verified on device, partial; `hub/status/mayank.md`]
 
+**D33 live Conversation:** the spike control is removed. The app now streams explicitly started HFP PCM to Muse Voice Transcribe realtime (`ENDPOINTING`) and sends live text to Muse Spark Standard mode for a guarded recap. Mayank reported a spoken double-tap recap and working start/stop on the S23 Ultra; the final “Start recording” wording and second-speaker pickup need a new run. Raw audio and new transcripts are RAM-only. Android TTS speaks over the HFP communication route. [Built; user-reported device run in `hub/status/codex.md`]
+
 **Open-weight:** Muse Spark Open (816B MoE, self-host) and Muse Glimmer (edge-sized, Apache 2.0, text and image in, runs with llama.cpp, vLLM, SGLang or ExecuTorch). Whether self-hosting a Meta model on the phone counts as "Meta stack" is Q14. [Docs]
 
 **Retention and training terms for requests are not covered on pages read.** Check the Model API terms before sending any frame that contains a person (Q12). [Unknown]
@@ -183,8 +186,8 @@ Mirrors the PRD table, which also records what is built on `main`. Detail and so
 | Camera frames | DAT stream or single photo; Bitmap or HEIC [Docs]. One photo per request reaches Myst [Verified on device]. Latency not timed. | Live; one photo per request |
 | Audio to wearer | No DAT call; Android audio over A2DP [Docs]. Heard on the glasses with Meta's sample and, on 2026-10-25, Myst's unsure TTS via Home backup [Verified on device, user report; not timed]. | Live |
 | Speech out | No Meta TTS [Docs] | Android TextToSpeech, labeled OS (D17, Proposed) |
-| Speech in | HFP mic plus Muse Voice Transcribe realtime or file upload, or DAT Speech (experimental) [Docs]. D25 spike: HFP + one DAT photo + wearer transcription worked; DAT Speech sharing and other-speaker pickup unproved [Verified on device, partial]. | DAT Speech (D17); conversation nudge paused (D25) |
-| Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Speech phrase (D17) plus a quiet "Backup: Who is this?" text button on Home (D24); glasses tap via MediaSession untested |
+| Speech in | HFP mic plus Muse Voice Transcribe realtime or file upload, or DAT Speech (experimental) [Docs]. D33 realtime Conversation start/stop and recap were user-reported on the S23 Ultra; other-speaker pickup unproved. | DAT Speech for face and “Start recording”; Muse realtime for live text and “Stop recording” |
+| Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | DAT Speech phrase plus experimental DAT Inputs CAPTOUCH Select; double-tap recap user-reported, face double-tap untested; phone backups |
 | Person identification | Policy-gated, no Meta matcher [Docs]. Muse Spark comparison works in dev testing [Verified on device, partial]. | `MuseIdentity`, dev builds only (D12); never presented as Meta-approved |
 | Memory storage | Caregiver records on the phone; D30 adds explicitly fictional Krishna/RJ demo bundles after a real match | Live storage; D30 context is scripted (mock) |
 | Label reading and bottle check | Muse Spark image understanding plus structured output [Docs]. | Removed (D24, efc2270): medication sends no frame to Muse |

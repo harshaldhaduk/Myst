@@ -63,6 +63,18 @@ class AndroidTtsSpeaker(context: Context) : Speaker {
   private val main = Handler(Looper.getMainLooper())
   @Volatile private var earconEndsAt = 0L
 
+  /** Use the bidirectional Bluetooth headset route while HFP transcription is active. */
+  fun useCommunicationRoute(enabled: Boolean) {
+    main.post {
+      tts.setAudioAttributes(
+          AudioAttributes.Builder()
+              .setUsage(if (enabled) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
+              .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+              .build(),
+      )
+    }
+  }
+
   override fun earcon() {
     earconEndsAt = SystemClock.elapsedRealtime() + Earcon.DURATION_MS
     earconPlayer.play()

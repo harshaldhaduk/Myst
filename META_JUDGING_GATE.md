@@ -125,7 +125,7 @@ These are **hard release gates** independent of the 100-point score. Any failure
 | **2:20–2:35** | Show the actual build tools used: DAT 1.0.1, Meta Model API, Android app, and honest live/experimental labels. Do not show D25's unpassed conversation nudge or describe WhatsApp as delivered. | A5, E3, S02, S03 |
 | **2:35–2:40** | Return to the two people speaking and finish with the connection thesis. | H6, E3 |
 
-The follow-up “What did we talk about last time?” and the D25 nudge are unbuilt. This plan uses the memory already included in the initial cue. A3 remains FAIL until a separate, grounded follow-up works on the device. Film the hero clip only after its trigger, face result, audible cue and resulting conversation succeed in one run.
+The follow-up “What did we talk about last time?” is unbuilt. D33 adds a distinct live-session Conversation recap that Mayank reported working after a glasses double-tap, but it does not retrieve actual prior family context, so A3 remains FAIL. Film the hero clip only after its trigger, face result, audible cue and resulting conversation succeed in one run.
 
 **Tradeoff:** If the video must cut something, remove object finding, flashy UI, and extra features **before** removing the Margaret–Daniel conversation, the live AI trace, or truthful limitations. The official suggested breakdown totals ~3 minutes; our outline compresses it to ~2:45 without omitting a required section.
 
@@ -222,22 +222,22 @@ The follow-up “What did we talk about last time?” and the D25 nudge are unbu
 | H1 | FAIL | No script or video yet. | Lane 5: write the 25-30 s opening. |
 | H2 | FAIL | No demo clip of Margaret turning to Daniel. | Lane 5: film after E2 runs. |
 | H3 | PENDING | Built: stored person memories -> FamiliarFaces -> ResponseGuard. D30 adds fictional Krishna/RJ context (D32 uses neutral saved-context labels in the app); a scripted demo story is not evidence of a recorded real conversation. No real-device source-to-output trace for this build. | Lane 2: verify both requested subjects, stored source attribution, and the guarded spoken output. |
-| H4 | PENDING | Built: DAT Speech phrase, experimental double-tap via Bluetooth media events (next/previous now handled; physical flow not yet verified; single tap is DAT pause/resume), quiet Home backup control. On 2026-10-25 the backup produced an audible unsure line through the glasses (user report, `hub/status/mayank.md`); spoken trigger remained intermittent. | Lane 2: record an uninterrupted wearer-initiated glasses-triggered run. |
+| H4 | PENDING | Built: DAT Speech, DAT Inputs CAPTOUCH Select and quiet Home backup. Mayank reported a double-tap produced a spoken live Conversation recap (`hub/status/codex.md`); face-trigger double-tap and the newest “Start recording” phrase still need device runs. The Android MediaSession fallback was removed. | Lane 2: record an uninterrupted face-trigger run. |
 | H5 | PENDING | Built: Setup > Family (consent, memories add/delete/reorder, revoke deletes record, photo, visits). Revoke not re-checked on a phone with the D19 build. | Lane 4: revoke-then-ask test on the phone. |
 | H6 | FAIL | No judge-facing statement or clip. | Lane 5. |
 | A1 | PENDING | Built: `MuseIdentity` (D12). Status file: 5 of 5 match verdicts, 2 with two enrolled; log holds Muse's verdict, not ground truth. | Lane 2: logged run with a second enrolled person. |
 | A2 | PENDING | Path built end to end; no timestamped trace or video. | Lane 2: capture one trace. |
-| A3 | FAIL | Follow-up "What did we talk about last time?" not built. D25 nudge remains a stopped spike: wearer ASR and photo during HFP observed, second speaker/DAT Speech sharing not proved, Spark BAD_ANSWER (`hub/status/mayank.md`). | Lane 2: keep follow-up out of the video until a live run passes. |
+| A3 | FAIL | Follow-up "What did we talk about last time?" not built. D33 live-session recap was user-reported spoken after a double-tap (`hub/status/codex.md`), but no prior-family-context retrieval or two-source comparison exists. | Keep A3 out of claims until its own proof passes. |
 | A4 | FAIL | No stranger, no-face or no-memory trials. D21 is on `main` (a Muse failure says "I can't check right now"). | Lane 2: 3/3 negatives. |
 | A5 | FAIL | No architecture walkthrough or narration. Inputs: `hub/META_SUITE.md` section 8, `hub/PRD.md` section 2. | Lane 5. |
 | O1 | FAIL | Differentiator sentence exists (section 1); no matching video scene. | Lane 5. |
 | O2 | FAIL | 3-row comparison not written. | Lane 5. |
 | O3 | FAIL | No wearer POV footage. | Lane 5. |
-| O4 | FAIL | No walkthrough yet. Scope narrowed to Familiar Faces for the demo (D20); medication is reminders only, no bottle check (D24). | Lane 5. |
+| O4 | FAIL | No walkthrough yet. Familiar Faces leads; Conversation is an additional on-request feature (D33), medication is reminders only (D24). | Lane 5: film a truthful user flow. |
 | E1 | FAIL | No filmed run; no demo reset. | Lanes 2, 5. |
 | E2 | FAIL | No 5-run log, no negative tests, no reset, no unit tests (D13 not adopted). | Lane 2. |
 | E3 | FAIL | Section 4 now has a truthful 2:40 shot plan; video not recorded or timed. | Lane 5: film and check final duration. |
-| E4 | PENDING | Real glasses capture and Muse calls (status files); mocks and experimental parts labeled in `core/Capability.kt` and on Home. MockIdentity removed and key out of the APK (D21, D22, ef9d32c); lint 0 errors. | Lane 2: run D21/D22 on the device. |
+| E4 | PENDING | Real glasses capture and Muse calls (status files); experimental capability labels remain in `core/Capability.kt`/Home's expanded “How Myst works” section. D33 recap was user-reported working; no filmed run or full evidence log. MockIdentity removed and key out of the APK (D21, D22). | Lane 2: record run evidence and complete privacy checks. |
 | E5 | FAIL | Draft `docs/demo-script.md` covers setup, run order and labeled fallback; no reset or recorded fallback, and no fresh-operator rehearsal. | Lane 5: rehearse and record fallback. |
 
 **Hard-gate status:** G01–G10 = `NOT VERIFIED` until every item is checked against evidence.

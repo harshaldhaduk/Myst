@@ -13,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
 import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
 import com.meta.wearable.dat.core.Wearables
 import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
@@ -20,6 +21,7 @@ import com.myst.ui.EnrollViewModel
 import com.myst.ui.MystApp
 import kotlin.coroutines.resume
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -35,9 +37,8 @@ class MainActivity : ComponentActivity() {
       }
 
   private val notificationPermission = registerForActivityResult(RequestPermission()) {}
-  private val spikePermission = registerForActivityResult(RequestPermission()) { allowed ->
-    if (allowed) viewModel.runConversationSpike(::requestWearablesPermission)
-    else viewModel.conversationSpikeDenied()
+  private val conversationPermission = registerForActivityResult(RequestPermission()) { allowed ->
+    if (allowed) viewModel.enableLiveConversation() else viewModel.liveConversationPermissionDenied()
   }
 
   // Glasses permissions are granted in the Meta AI app; this bridges its result back to a suspend call.
@@ -58,6 +59,19 @@ class MainActivity : ComponentActivity() {
         }
       }
 
+  private suspend fun checkWearablesPermission(permission: Permission): PermissionStatus =
+      Wearables.checkPermissionStatus(permission).getOrDefault(PermissionStatus.Denied)
+
+  private suspend fun requestMystPermissions() {
+    // DAT grants each capability in Meta AI. Ask for both from the Start Myst tap so a later
+    // spoken face request never sends the wearer to a permission screen.
+    for (permission in listOf(Permission.MICROPHONE, Permission.CAMERA)) {
+      if (checkWearablesPermission(permission) != PermissionStatus.Granted) {
+        requestWearablesPermission(permission)
+      }
+    }
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     // White app: dark status and navigation bar icons.
@@ -72,8 +86,18 @@ class MainActivity : ComponentActivity() {
           onUnregister = { viewModel.gateway.startUnregistration(this) },
           onCapture = { viewModel.capture(::requestWearablesPermission) },
           onWhoIsThis = { viewModel.whoIsThis(::requestWearablesPermission) },
-          onConversationSpike = { spikePermission.launch(RECORD_AUDIO) },
-          onMystOn = { on -> viewModel.setMystOn(on, ::requestWearablesPermission) },
+          onEnableLiveConversation = { conversationPermission.launch(RECORD_AUDIO) },
+          onStartLiveConversation = { viewModel.startLiveConversation(::requestWearablesPermission) },
+          onMystOn = { on ->
+            if (on) {
+              lifecycleScope.launch {
+                requestMystPermissions()
+                viewModel.setMystOn(true, ::checkWearablesPermission)
+              }
+            } else {
+              viewModel.setMystOn(false, ::checkWearablesPermission)
+            }
+          },
           onOpenGlassesUpdate = { viewModel.openGlassesUpdate(this) },
       )
     }

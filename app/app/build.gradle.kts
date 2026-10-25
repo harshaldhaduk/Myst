@@ -61,5 +61,6 @@ dependencies {
   implementation(libs.mwdat.core)
   implementation(libs.mwdat.camera)
   implementation(libs.mwdat.speech)
+  implementation(libs.mwdat.inputs)
   implementation(libs.mwdat.mockdevice)
 }

@@ -2,6 +2,7 @@ package com.myst.ui
 
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,10 +48,11 @@ import com.myst.core.Capability
 import com.myst.BuildConfig
 import com.myst.core.Label
 import com.myst.features.VoiceCommands
+import com.myst.features.conversation.LiveConversationRecorder
 import com.myst.features.meds.DoseReminders
 import com.myst.features.meds.DoseSchedule
 import com.myst.glasses.GlassesState
-import com.myst.glasses.GlassesTapTrigger
+import com.myst.glasses.DatGlassesGateway
 import com.myst.ui.theme.Myst
 import java.util.Calendar
 
@@ -61,7 +64,8 @@ fun HomeScreen(
     mystOn: Boolean,
     onMystOn: (Boolean) -> Unit,
     onWhoIsThis: () -> Unit,
-    onConversationSpike: () -> Unit,
+    onEnableLiveConversation: () -> Unit,
+    onStartLiveConversation: () -> Unit,
     onRegister: () -> Unit,
     onUnregister: () -> Unit,
     onOpenGlassesUpdate: () -> Unit,
@@ -78,7 +82,15 @@ fun HomeScreen(
         Text("Myst", style = MaterialTheme.typography.displaySmall)
         Text(greeting(), style = MaterialTheme.typography.bodyMedium, color = Myst.InkSoft)
       }
-      GlassesPill(glasses)
+      Column(horizontalAlignment = Alignment.End) {
+        GlassesPill(glasses)
+        when {
+          ui.needsGlassesUpdate -> QuietButton("Update glasses", onOpenGlassesUpdate)
+          glasses == GlassesState.Unregistered -> QuietButton("Connect", onRegister, enabled = ui.datReady)
+          glasses is GlassesState.Connected || glasses == GlassesState.Disconnected ->
+              QuietButton("Disconnect", onUnregister, enabled = ui.datReady)
+        }
+      }
     }
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -95,9 +107,9 @@ fun HomeScreen(
       )
       Text(
           if (mystOn) {
-            "Say \"Who is this?\" or try a double-tap on the glasses."
+            "Say \"Who is this?\" for a familiar face."
           } else {
-            "One switch for voice and glasses tap."
+            "One switch for voice commands."
           },
           style = MaterialTheme.typography.bodyMedium,
           color = Myst.InkSoft,
@@ -108,7 +120,7 @@ fun HomeScreen(
         Spacer(Modifier.height(14.dp))
         Panel(tint = Myst.BlushWash, radius = 22.dp, padding = 16.dp) {
           Text(ui.voiceProblem, style = MaterialTheme.typography.bodyMedium)
-          Text("Try the backup button below. Double-tap is experimental; a single tap pauses the glasses session.", style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
+          Text("Use the backup button below if voice is unavailable.", style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
           PillButton("Try voice again", { onMystOn(true) }, color = Myst.Blush)
         }
       }
@@ -145,9 +157,9 @@ fun HomeScreen(
       }
     }
 
-    LastSaidCard(ui.lastSaid)
+    LiveConversationCard(ui, mystOn, onEnableLiveConversation, onStartLiveConversation, viewModel)
 
-    GlassesCard(ui, glasses, onRegister, onUnregister, onOpenGlassesUpdate)
+    LastSaidCard(ui.lastSaid)
 
     AboutCard(viewModel, camera)
 
@@ -159,11 +171,83 @@ fun HomeScreen(
           enabled = connected && !busy,
       )
     }
-    if (BuildConfig.DEBUG) {
-      Text("Experimental conversation spike: with everyone’s consent, Myst records 30 seconds in RAM and sends it to Meta for transcription.", style = MaterialTheme.typography.bodySmall)
-      QuietButton("Run 30-second HFP spike", onConversationSpike, enabled = mystOn && !ui.conversationSpikeRunning)
-      ui.conversationSpikeReport?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-      ui.conversationSpikeTranscript?.let { Text("Transcript (temporary): $it", style = MaterialTheme.typography.bodySmall) }
+  }
+}
+
+@Composable
+private fun LiveConversationCard(
+    ui: EnrollUiState,
+    mystOn: Boolean,
+    onEnable: () -> Unit,
+    onStart: () -> Unit,
+    viewModel: EnrollViewModel,
+) {
+  val recording = ui.liveConversationRecording
+  val transcript = listOf(ui.liveConversationText, ui.liveConversationPartial)
+      .filter(String::isNotBlank).joinToString(" ")
+  Panel(tint = if (recording) Myst.LilacWash else Myst.Mist,
+      modifier = Modifier.animateContentSize(), radius = 26.dp, padding = 20.dp) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+      Box(Modifier.size(12.dp).background(if (recording) Myst.Rose else Myst.LilacStrong, CircleShape))
+      Column(Modifier.weight(1f)) {
+        Text("Conversation", style = MaterialTheme.typography.titleLarge)
+        Text(if (recording) {
+          if (ui.liveConversationReady) "Listening now" else "Getting ready…"
+        } else "A gentle way back into the moment",
+            style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
+      }
+      if (recording && ui.liveConversationReady) Tag("LIVE", Myst.Blush)
+    }
+
+    if (!recording) {
+      Text("Say “Start recording” to begin. Say “Stop recording” to finish.",
+          style = MaterialTheme.typography.bodyMedium)
+      Text("Please record only when everyone agrees.",
+          style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
+      if (!ui.liveConversationEnabled) {
+        PillButton("Allow microphone", onEnable, color = Myst.Lilac)
+      } else if (mystOn) {
+        QuietButton("Start on phone", onStart)
+      }
+      ui.liveConversationLastRecap?.let { recap ->
+        Panel(tint = Myst.White, radius = 18.dp, padding = 14.dp) {
+          SmallLabel("Your last recap")
+          Text(recap, style = MaterialTheme.typography.bodyLarge)
+        }
+      }
+      ui.liveConversationStatus?.takeIf { status ->
+        status.contains("denied", true) || status.contains("not available", true) ||
+            status.contains("could not", true) || status.contains("failed", true)
+      }?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Myst.Rose) }
+    } else {
+      Panel(tint = Myst.White, radius = 18.dp, padding = 16.dp) {
+        SmallLabel("Live transcript")
+        Text(if (transcript.isBlank()) "Words will appear here as the conversation unfolds…" else transcript,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (transcript.isBlank()) Myst.InkSoft else Myst.Ink)
+      }
+      if (ui.liveConversationRecapRunning) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Myst.Rose)
+          Text("Finding your place…", style = MaterialTheme.typography.bodyMedium)
+        }
+      } else {
+        ui.liveConversationLastRecap?.let { recap ->
+          Panel(tint = Myst.BlushWash, radius = 18.dp, padding = 16.dp) {
+            SmallLabel("Your recap")
+            Text(recap, style = MaterialTheme.typography.titleMedium)
+          }
+        }
+      }
+      Text("Double-tap the glasses for a spoken recap.",
+          style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
+      Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically) {
+        QuietButton("Recap on phone", viewModel::requestLiveConversationRecap,
+            enabled = ui.liveConversationReady && !ui.liveConversationRecapRunning)
+        QuietButton("Stop recording", viewModel::stopLiveConversation, color = Myst.Rose)
+      }
     }
   }
 }
@@ -254,7 +338,7 @@ private fun GlassesPill(glasses: GlassesState) {
 @Composable
 private fun LastSaidCard(said: LastSaid?) {
   Panel(tint = Myst.LilacWash) {
-    SmallLabel("Last thing Myst said")
+    SmallLabel("Last person Myst saw")
     if (said == null) {
       Text(
           "Nothing yet. Ask \"Who is this?\" and the answer shows up here.",
@@ -273,39 +357,6 @@ private fun LastSaidCard(said: LastSaid?) {
   }
 }
 
-@Composable
-private fun GlassesCard(
-    ui: EnrollUiState,
-    glasses: GlassesState,
-    onRegister: () -> Unit,
-    onUnregister: () -> Unit,
-    onOpenGlassesUpdate: () -> Unit,
-) {
-  Panel(tint = Myst.Mist) {
-    Text("Glasses", style = MaterialTheme.typography.titleLarge)
-    Text(
-        when (glasses) {
-          GlassesState.NotInitialized -> "Waiting for Bluetooth permission."
-          GlassesState.Unregistered -> "Connect Myst to your Ray-Ban Meta glasses through the Meta AI app."
-          GlassesState.Registering -> "Finish connecting in the Meta AI app."
-          GlassesState.Disconnected -> "Myst is set up. Put the glasses on and make sure they're connected in the Meta AI app."
-          is GlassesState.Connected ->
-              "Connected to ${glasses.deviceCount} pair${if (glasses.deviceCount == 1) "" else "s"} of glasses. Battery ${glasses.batteryLevel?.let { "$it%" } ?: "unavailable"}."
-          GlassesState.Capturing -> "Taking a photo…"
-        },
-        style = MaterialTheme.typography.bodyMedium,
-    )
-    if (ui.needsGlassesUpdate) {
-      PillButton("Update the glasses in Meta AI", onOpenGlassesUpdate, color = Myst.Blush)
-    }
-    when (glasses) {
-      GlassesState.Unregistered -> PillButton("Connect glasses", onRegister, enabled = ui.datReady)
-      GlassesState.NotInitialized, GlassesState.Registering -> Unit
-      else -> QuietButton("Disconnect Myst from the glasses", onUnregister, enabled = ui.datReady)
-    }
-  }
-}
-
 /** What is real on this phone and what is not (AGENTS.md: label live, mock and experimental). */
 @Composable
 private fun AboutCard(viewModel: EnrollViewModel, camera: Capability) {
@@ -318,7 +369,8 @@ private fun AboutCard(viewModel: EnrollViewModel, camera: Capability) {
         CapabilityRow(viewModel.museIdentity?.capability ?: FACE_ID_NOT_IN_BUILD)
         CapabilityRow(viewModel.speaker.capability)
         CapabilityRow(VoiceCommands.capability)
-        CapabilityRow(GlassesTapTrigger.capability)
+        if (BuildConfig.DEBUG) CapabilityRow(LiveConversationRecorder.capability)
+        if (BuildConfig.DEBUG) CapabilityRow(DatGlassesGateway.inputCapability)
         CapabilityRow(DoseReminders.capability)
         CapabilityRow(DoseReminders.alertCapability)
         Text(

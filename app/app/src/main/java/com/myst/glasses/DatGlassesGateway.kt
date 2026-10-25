@@ -14,6 +14,12 @@ import com.meta.wearable.dat.speech.Speech
 import com.meta.wearable.dat.speech.addSpeech
 import com.meta.wearable.dat.speech.removeSpeech
 import com.meta.wearable.dat.speech.types.SpeechState
+import com.meta.wearable.dat.inputs.addInputs
+import com.meta.wearable.dat.inputs.removeInputs
+import com.meta.wearable.dat.inputs.Inputs
+import com.meta.wearable.dat.inputs.types.InputEvent
+import com.meta.wearable.dat.inputs.types.InputSource
+import com.meta.wearable.dat.inputs.types.InputsConfiguration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import com.meta.wearable.dat.camera.types.PhotoData
@@ -69,6 +75,12 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
             Label.LIVE,
             "DAT 1.0.1 photo from the paired Ray-Ban Meta glasses",
         )
+  val inputCapability = Capability(
+      "Glasses touch input",
+      Label.EXPERIMENTAL,
+      "DAT Inputs CAPTOUCH select event; requires Developer Center capability approval",
+      blockedBy = "Approval and real-glasses response while HFP transcription is active are unverified",
+  )
     val MOCK =
         Capability(
             "Glasses camera",
@@ -153,11 +165,19 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
   // MARK: - Listening (DAT Speech, experimental)
 
   /** One open session with Speech attached; captures borrow it instead of opening their own. */
-  private class Listening(val session: OpenSession, val speech: Speech, val jobs: List<Job>)
+  private class Listening(
+      val session: OpenSession,
+      val speech: Speech,
+      val inputs: Inputs?,
+      val jobs: List<Job>,
+      var speechPausedForConversation: Boolean = false,
+  )
 
   private var listening: Listening? = null
   private val _isListening = MutableStateFlow(false)
   val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
+  private val _inputCapabilityActive = MutableStateFlow(false)
+  val inputCapabilityActive: StateFlow<Boolean> = _inputCapabilityActive.asStateFlow()
 
   /**
    * Starts on-glasses speech recognition. [onFinalText] gets each final transcript; callers match
@@ -167,6 +187,7 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
   suspend fun startListening(
       requestPermission: suspend (Permission) -> PermissionStatus,
       onFinalText: (String) -> Unit,
+      onCapTouch: () -> Unit,
   ): String? =
       captureLock.withLock {
         if (listening != null) return@withLock null
@@ -183,6 +204,10 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
                   opened.close()
                   return@withLock "Speech: ${added.describeError()}"
                 }
+        // DAT Inputs is experimental and requires Developer Center capability approval. Failure
+        // here must not prevent the spoken command from working; Home keeps a phone recap button.
+        val inputs = opened.session.addInputs(InputsConfiguration(sources = setOf(InputSource.CAPTOUCH))).getOrNull()
+        _inputCapabilityActive.value = inputs != null
         val jobs =
             listOf(
                 scope.launch {
@@ -196,7 +221,8 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
                   var running = false
                   speech.state.collect { state ->
                     if (state == SpeechState.STARTED) running = true
-                    if (state == SpeechState.STOPPED && running && listening?.speech === speech) {
+                    if (state == SpeechState.STOPPED && running && listening?.speech === speech &&
+                        listening?.speechPausedForConversation != true) {
                       running = false
                       delay(SPEECH_RESTART_DELAY_MS)
                       if (speech.start().isFailure) stopListening()
@@ -208,15 +234,23 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
                   opened.session.state.first { it == DeviceSessionState.STOPPED }
                   stopListening()
                 },
-            )
+            ) + listOfNotNull(inputs?.let { input ->
+              scope.launch {
+                input.events.collect { event ->
+                  if (event is InputEvent.Select && event.source == InputSource.CAPTOUCH) onCapTouch()
+                }
+              }
+            })
         val start = speech.start()
         if (start.isFailure) {
+          _inputCapabilityActive.value = false
           jobs.forEach { it.cancel() }
           runCatching { opened.session.removeSpeech() }
+          if (inputs != null) runCatching { opened.session.removeInputs() }
           opened.close()
           return@withLock "Speech: ${start.describeError()}"
         }
-        listening = Listening(opened, speech, jobs)
+        listening = Listening(opened, speech, inputs, jobs)
         _isListening.value = true
         null
       }
@@ -225,10 +259,40 @@ class DatGlassesGateway(private val scope: CoroutineScope) : GlassesGateway {
     val l = listening ?: return
     listening = null
     _isListening.value = false
+    _inputCapabilityActive.value = false
     l.jobs.forEach { it.cancel() }
     runCatching { l.speech.stop() }
     runCatching { l.session.session.removeSpeech() }
+    if (l.inputs != null) runCatching { l.session.session.removeInputs() }
     l.session.close()
+  }
+
+  /** Stops DAT Speech while retaining DAT Inputs for a user-initiated live transcription session. */
+  fun pauseSpeechForConversation(): Boolean {
+    val l = listening ?: return false
+    l.speechPausedForConversation = true
+    runCatching { l.speech.stop() }
+    _isListening.value = false
+    return true
+  }
+
+  suspend fun resumeSpeechAfterConversation(
+      requestPermission: suspend (Permission) -> PermissionStatus,
+      onFinalText: (String) -> Unit,
+      onCapTouch: () -> Unit,
+  ): String? {
+    val current = listening
+    if (current == null || current.session.session.state.value != DeviceSessionState.STARTED) {
+      stopListening()
+      return startListening(requestPermission, onFinalText, onCapTouch)
+    }
+    current.speechPausedForConversation = false
+    if (current.speech.start().isFailure) {
+      stopListening()
+      return startListening(requestPermission, onFinalText, onCapTouch)
+    }
+    _isListening.value = true
+    return null
   }
 
   // MARK: - Capture

@@ -11,13 +11,15 @@ object VoiceCommands {
   enum class Command {
     /** Familiar Faces. */
     WHO_IS_THIS,
+    /** Starts an opted-in live conversation transcript. */
+    RECORD_CONVERSATION,
   }
 
   val capability =
       Capability(
-          "Voice: \"Who is this?\"",
+          "Voice: glasses commands",
           Label.EXPERIMENTAL,
-          "DAT Speech on the glasses; the mic listens only while Myst is on",
+          "DAT Speech recognizes \"Who is this?\" and \"Start recording\" while Myst is on",
           blockedBy = "Speech may need enabling in Wearables Developer Center",
       )
 
@@ -25,6 +27,7 @@ object VoiceCommands {
       mapOf(
           Command.WHO_IS_THIS to
               listOf("who is this", "whos this", "who is that", "whos that", "who is it", "whos it"),
+          Command.RECORD_CONVERSATION to listOf("start recording"),
       )
 
   /** The command in [transcript], or null. */

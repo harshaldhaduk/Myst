@@ -1,10 +1,10 @@
-# Codex · Platform trigger correction and documentation
+# Codex · Platform and Conversation work
 
 Updated 2026-10-25.
 
-**Implemented**
-- `GlassesTapTrigger` now handles Bluetooth next/previous-track key events and transport callbacks as well as play/pause, advertises those playback actions, and ignores repeated key-downs.
-- Home and start confirmation describe double-tap as experimental. Removed the claim that a glasses tap definitely works when voice fails; the Home backup button remains.
+**Historical D29 slice (superseded by D33)**
+- `GlassesTapTrigger` handled Bluetooth media events. D33 removed it after music playback interference and switched the live double-tap recap to DAT Inputs CAPTOUCH Select.
+- Home and start confirmation described double-tap as experimental. The Home backup button remains.
 - Recorded D29 and updated the PRD, platform reference, app README and H4 ledger. No new dependency, capture mode, or direct DAT Inputs implementation.
 - Included earlier user-authorized documentation changes: WhatsApp excluded (D27), no remote delivery channel selected, and reply-prefix requirements removed (D28). Historical decisions remain intact.
 
@@ -14,7 +14,7 @@ Updated 2026-10-25.
 - `:app:assembleDebug :app:lintDebug` passed with a complete JDK 17. The resulting APK passed apksigner verification.
 - Physical double-tap through capture, Muse and audible recognition has not been verified. H4 remains PENDING.
 
-**Deployment handoff**
+**Historical deployment handoff (superseded by the current device install)**
 - User requested pushing the changes so the computer with the original signing key can build and install them.
 - This computer's debug signer differs from the installed app. No APK was installed, no app was uninstalled, and no device data was cleared. The previous APK is backed up outside the repository; no complete app-data backup was made.
 - On the original build computer, retain its existing debug keystore and `app/local.properties` settings, including the authorized face-ID build setting. From the repository root:
@@ -47,3 +47,24 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - Removed demo/fictional/scripted wording from Family’s memory hint, badge, displayed seed attribution, and Home’s last-answer note. Uses Shared context / Saved context / Saved relationship context. Existing stored author metadata stays internal, so already seeded records also show the new labels without migration.
 - No changes to recognition, memory text, seeding/deletion, visit history or the 40-word guard. Documentation retains the stories’ scripted provenance.
 - Cross-lane code: `ui/SetupScreen.kt` and `core/records/DemoMemories.kt`. Docs: AGENTS, README, PRD, H3 ledger, D32 and this status. assembleDebug and lintDebug passed. A scan of UI/resource string literals found no demo/fictional/scripted wording; existing stored seed authors are displayed through the neutral saved-context branch. Device install remains with the original signing computer.
+
+## Shipped in the current D33 slice
+
+- Added explicitly started live Conversation transcription using the glasses HFP mic and Muse Voice Transcribe realtime, plus a Muse Spark structured one-sentence recap through ResponseGuard and Android TTS. DAT Inputs CAPTOUCH Select is the glasses recap trigger; phone recap is the backup. “Stop recording” is recognized in the realtime transcript. The old 30-second spike control and Android MediaSession tap fallback were removed.
+- Conversation Home card is compact when idle and expands for live text, recap progress and result. No visible checkbox, experimental title, or saved-transcript list. New sessions do not write audio or transcript files and clear transcript state at end. Existing encrypted files from earlier test builds were left untouched.
+- Latest user-requested wording/layout: “Start recording” replaces “Record this”; separate Glasses card removed; Connect/Disconnect/Update appears below the top-right battery pill as applicable; the face card is titled “Last person Myst saw.”
+- Cross-lane code: `ui/{EnrollViewModel,HomeScreen,MystApp}.kt`, `glasses/{DatGlassesGateway,Speaker,GlassesTapTrigger}.kt`, `features/{VoiceCommands,conversation/ConversationSpike,conversation/LiveConversationRecorder}.kt`, `muse/MuseRealtimeClient.kt`, manifest and Gradle. Docs: AGENTS, DECISIONS D33, PRD, META_SUITE, LOOP, app README, META_JUDGING_GATE and this status.
+
+## In flight
+
+- The new “Start recording” wording and relocated top-right connection controls are built but await a real-glasses/UI check. No automatic visit recording or past-conversation follow-up is built.
+
+## Verified on device
+
+- 2026-10-25, Samsung S23 Ultra (SM-S918U1, Android 16), Meta AI 295.0.0.37.164, RB Meta 02WM glasses (firmware unrecorded): Mayank reported the earlier “Record this” start and “Stop recording” end worked; a glasses double-tap produced a spoken recap. Android's Myst-only log showed `conversation recap ok 2511ms` on one run; the transcript and audio were not logged or retained for inspection.
+- A first recap build failed to return JSON with `finish=length` at 120 output tokens; raising to 600 gave `conversation recap ok` in logs. An audio-focus build crashed because Android required a listener for `setWillPauseWhenDucked(true)`; the trace identified `LiveConversationRecorder.kt:79`. Removing that flag, rebuilding and installing with `adb install -r` led Mayank to report “Great works now.” This confirms the crash was resolved by user report; Spotify behavior was not separately described after that build.
+- `assembleDebug` and `lintDebug` passed on the original-signing-key computer. All installations were in place (`adb install -r`), preserving enrollment and the Muse key.
+
+## Gaps
+
+- New phrase and small Home layout pending device check; second-speaker transcription, physical face-trigger double-tap, end-to-end latency and a filmed demo remain unverified. No unit tests were added. Earlier encrypted test transcripts remain in app-private storage but this build has no history UI or new writes.

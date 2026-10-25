@@ -27,10 +27,9 @@ import com.myst.muse.MuseClient
 import com.myst.core.secrets.MuseKeyStore
 import com.myst.features.faces.WhisperResult
 import com.myst.features.VoiceCommands
-import com.myst.features.conversation.ConversationSpike
+import com.myst.features.conversation.LiveConversationRecorder
 import com.myst.glasses.AndroidTtsSpeaker
 import com.myst.glasses.CaptureResult
-import com.myst.glasses.GlassesTapTrigger
 import com.myst.glasses.CaptureTimings
 import com.myst.glasses.DatGlassesGateway
 import com.myst.glasses.Photo
@@ -44,6 +43,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Job
+import org.json.JSONArray
+import org.json.JSONObject
 
 data class PendingPhoto(val photo: Photo, val source: PhotoSource, val timings: CaptureTimings)
 
@@ -65,9 +67,14 @@ data class EnrollUiState(
     val lastSaid: LastSaid? = null,
     /** Why voice listening isn't running while Myst is on, in plain words; null when it's fine. */
     val voiceProblem: String? = null,
-    val conversationSpikeRunning: Boolean = false,
-    val conversationSpikeReport: String? = null,
-    val conversationSpikeTranscript: String? = null,
+    val liveConversationEnabled: Boolean = false,
+    val liveConversationRecording: Boolean = false,
+    val liveConversationReady: Boolean = false,
+    val liveConversationStatus: String? = null,
+    val liveConversationText: String = "",
+    val liveConversationPartial: String = "",
+    val liveConversationRecapRunning: Boolean = false,
+    val liveConversationLastRecap: String? = null,
 )
 
 /** [quiet] means Myst stayed silent or was unsure; [note] explains a missing photo, if any. */
@@ -126,6 +133,9 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   init {
     refreshPeople()
     refreshHousehold()
+    _ui.update { it.copy(liveConversationEnabled =
+        application.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED) }
     // Imports a freshly provisioned key (and wipes its plaintext file) at app start.
     viewModelScope.launch(Dispatchers.IO) { _museKeySet.value = museKeys.hasKey() }
     // Fast demo timing has no switch any more; make sure an old setting cannot stay on.
@@ -228,12 +238,11 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     }
     viewModelScope.launch {
       val failure =
-          gateway.startListening(requestPermission) { text ->
-            when (VoiceCommands.match(text)) {
-              VoiceCommands.Command.WHO_IS_THIS -> whoIsThis(requestPermission)
-              null -> Unit
-            }
-          }
+          gateway.startListening(
+              requestPermission,
+              onFinalText = { text -> handleVoiceCommand(text, requestPermission) },
+              onCapTouch = { handleCapTouch(requestPermission) },
+          )
       _ui.update {
         it.copy(
             message = if (failure == null) "Listening for \"Who is this?\"" else null,
@@ -244,38 +253,41 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     }
   }
 
-  // MARK: - Glasses tap trigger (silent "Who is this?")
-
-  private var tapTrigger: GlassesTapTrigger? = null
-  private val _tapOn = MutableStateFlow(false)
-  val tapOn: StateFlow<Boolean> = _tapOn.asStateFlow()
-
-  fun setTapTrigger(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
-    tapTrigger?.stop()
-    tapTrigger = null
-    if (on) {
-      tapTrigger = GlassesTapTrigger(getApplication()) { whoIsThis(requestPermission) }.also { it.start() }
-    }
-    _tapOn.value = on
-    _ui.update { it.copy(message = if (on) "Double-tap the glasses to ask \"Who is this?\" (experimental)." else "Glasses tap off.") }
-  }
-
   // MARK: - The one switch
 
-  /** Myst is on when it is listening for a phrase or a glasses tap. */
+  private var mystRequested = false
+
+  /** Myst is on while DAT Speech listens or a live conversation transcript is active. */
   val mystOn: StateFlow<Boolean> =
-      combine(gateway.isListening, _tapOn) { listening, tap -> listening || tap }
+      combine(gateway.isListening, _ui) { listening, state -> listening || state.liveConversationRecording }
           .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-  /**
-   * One switch for everything the wearer uses: listen for "Who is this?" and answer a tap on the
-   * glasses. Face recognition runs on each request only when this build allows it (D12).
-   * Called from a tap, because the glasses mic permission needs a user action.
-   */
+  /** One switch for DAT Speech and the experimental DAT touch input. */
   fun setMystOn(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
-    setTapTrigger(on, requestPermission)
-    setListening(on, requestPermission)
-    if (!on) _ui.update { it.copy(message = "Myst is resting.") }
+    mystRequested = on
+    if (on) setListening(true, requestPermission) else {
+      stopLiveConversation()
+      gateway.stopListening()
+      _ui.update { it.copy(voiceProblem = null, message = "Myst is resting.") }
+    }
+  }
+
+  private fun handleVoiceCommand(text: String, requestPermission: suspend (Permission) -> PermissionStatus) {
+    when (VoiceCommands.match(text)) {
+      VoiceCommands.Command.WHO_IS_THIS -> whoIsThis(requestPermission)
+      VoiceCommands.Command.RECORD_CONVERSATION -> beginLiveConversation(requestPermission)
+      null -> Unit
+    }
+  }
+
+  private fun handleCapTouch(requestPermission: suspend (Permission) -> PermissionStatus) {
+    val now = android.os.SystemClock.elapsedRealtime()
+    if (now - lastGlassesTapAt < 1_500L) return
+    lastGlassesTapAt = now
+    if (_ui.value.liveConversationRecording) {
+      _ui.update { it.copy(liveConversationStatus = "Glasses tap received. Preparing a recap…") }
+      requestLiveConversationRecap()
+    } else whoIsThis(requestPermission)
   }
 
   private fun plainVoiceProblem(failure: String): String =
@@ -290,20 +302,166 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   fun clearMessage() = _ui.update { it.copy(message = null) }
 
-  fun conversationSpikeDenied() {
-    _ui.update { it.copy(conversationSpikeReport = "Microphone permission denied; no recording started.") }
+  fun enableLiveConversation() {
+    _ui.update { it.copy(liveConversationEnabled = true, liveConversationStatus = null) }
   }
 
-  fun runConversationSpike(requestPermission: suspend (Permission) -> PermissionStatus) {
-    if (_ui.value.conversationSpikeRunning) return
-    _ui.update { it.copy(conversationSpikeRunning = true, conversationSpikeReport = "Routing HFP…", conversationSpikeTranscript = null) }
+  fun liveConversationPermissionDenied() {
+    _ui.update { it.copy(liveConversationEnabled = false,
+        liveConversationStatus = "Microphone permission was denied; no conversation was recorded.") }
+  }
+
+  private var liveRecorder: LiveConversationRecorder? = null
+  private var lastGlassesTapAt = 0L
+  private var stoppedByVoice = false
+  private val activeTurnsLock = Any()
+  private val activeTurns = mutableListOf<String>()
+
+  fun startLiveConversation(requestPermission: suspend (Permission) -> PermissionStatus) =
+      beginLiveConversation(requestPermission)
+
+  private fun beginLiveConversation(requestPermission: suspend (Permission) -> PermissionStatus) {
+    val state = _ui.value
+    if (state.liveConversationRecording) return
+    if (!state.liveConversationEnabled) {
+      _ui.update { it.copy(liveConversationStatus = "Record request heard. Enable live transcription on Home first.") }
+      speakRecordStatus("Please enable live transcription on your phone.")
+      return
+    }
+    if (getApplication<Application>().checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) !=
+        android.content.pm.PackageManager.PERMISSION_GRANTED) {
+      _ui.update { it.copy(liveConversationStatus = "Enable microphone access on Home before recording.") }
+      return
+    }
+    if (!gateway.pauseSpeechForConversation()) {
+      _ui.update { it.copy(liveConversationStatus = "Myst is not listening for the start phrase right now.") }
+      return
+    }
+    val recorder = LiveConversationRecorder(getApplication(), museKeys::key)
+    liveRecorder = recorder
+    stoppedByVoice = false
+    _ui.update { it.copy(liveConversationRecording = true, liveConversationReady = false,
+        liveConversationPartial = "", liveConversationText = "",
+        liveConversationLastRecap = null,
+        liveConversationStatus = "Record request heard. Connecting the glasses microphone and Meta transcription…") }
+    speaker.earcon()
     viewModelScope.launch {
-      val result = ConversationSpike(getApplication(), museKeys::key).run(gateway, requestPermission, muse) {
-        _ui.update { it.copy(conversationSpikeReport = "Recording now. Say ‘Who is this?’ then talk with the other person. Photo check at 10 seconds.") }
+      kotlinx.coroutines.delay(250) // Keep the first cue from being cut off by the HFP route switch.
+      synchronized(activeTurnsLock) { activeTurns.clear() }
+      try {
+        recorder.run(
+            onReady = {
+              _ui.update { it.copy(liveConversationReady = true,
+                  liveConversationStatus = "Recording now. Say ‘Stop recording’ to end.") }
+              speaker.useCommunicationRoute(true)
+              speaker.earcon()
+              speakRecordStatus("Recording now.")
+            },
+            onPartial = { partial ->
+              if (isStopRecordingPhrase(partial)) {
+                stoppedByVoice = true
+                _ui.update { it.copy(liveConversationStatus = "Stop request heard. Saving the transcript…",
+                    liveConversationPartial = "") }
+                true
+              } else {
+                _ui.update { it.copy(liveConversationPartial = partial) }
+                false
+              }
+            },
+            onTurn = { turn ->
+              if (isStopRecordingPhrase(turn)) {
+                stoppedByVoice = true
+                _ui.update { it.copy(liveConversationStatus = "Finishing the transcript…", liveConversationPartial = "") }
+                true
+              } else {
+                synchronized(activeTurnsLock) { activeTurns += turn }
+                _ui.update { it.copy(liveConversationText = synchronized(activeTurnsLock) { activeTurns.joinToString(" ") },
+                    liveConversationPartial = "") }
+                false
+              }
+            },
+            onFailure = { message -> _ui.update { it.copy(liveConversationStatus = message) } },
+        )
+      } finally {
+        synchronized(activeTurnsLock) { activeTurns.clear() }
+        liveRecorder = null
+        speaker.useCommunicationRoute(false)
+        val status = _ui.value.liveConversationStatus
+        _ui.update { it.copy(liveConversationRecording = false, liveConversationReady = false,
+            liveConversationText = "", liveConversationPartial = "", liveConversationStatus =
+                if (stoppedByVoice) "Recording stopped." else status ?: "Recording ended.") }
+        if (stoppedByVoice) speakRecordStatus("Recording stopped.")
+        if (mystRequested) {
+          val failure = gateway.resumeSpeechAfterConversation(
+              requestPermission,
+              onFinalText = { text -> handleVoiceCommand(text, requestPermission) },
+              onCapTouch = { handleCapTouch(requestPermission) },
+          )
+          _ui.update { it.copy(voiceProblem = failure?.let(::plainVoiceProblem)) }
+        }
       }
-      _ui.update { it.copy(conversationSpikeRunning = false, conversationSpikeReport = result.report, conversationSpikeTranscript = result.transcript) }
-      kotlinx.coroutines.delay(90_000)
-      _ui.update { it.copy(conversationSpikeTranscript = null) }
+    }
+  }
+
+  private fun isStopRecordingPhrase(text: String): Boolean {
+    val normalized = text.lowercase().replace(Regex("[^a-z ]"), " ").replace(Regex("\\s+"), " ").trim()
+    return normalized.contains("stop recording") || normalized.contains("stop the recording")
+  }
+
+  private fun speakRecordStatus(text: String) {
+    val guarded = ResponseGuard.check(text, null, _ui.value.people) as? ResponseGuard.Decision.Pass
+    guarded?.line?.let(speaker::say)
+  }
+
+  fun stopLiveConversation() {
+    liveRecorder?.stop()
+    if (_ui.value.liveConversationRecording) _ui.update { it.copy(liveConversationStatus = "Ending the transcript…") }
+  }
+
+  fun requestLiveConversationRecap() {
+    if (!_ui.value.liveConversationReady || _ui.value.liveConversationRecapRunning) return
+    val text = (synchronized(activeTurnsLock) { activeTurns.joinToString(" ") } +
+        " " + _ui.value.liveConversationPartial).trim()
+    if (text.isBlank()) {
+      speakRecordStatus("I haven't caught enough of the conversation yet.")
+      _ui.update { it.copy(liveConversationStatus = "There is not enough transcript yet for a recap.") }
+      return
+    }
+    speaker.earcon()
+    _ui.update { it.copy(liveConversationRecapRunning = true,
+        liveConversationStatus = "Preparing a one-sentence recap…") }
+    viewModelScope.launch {
+      val schema = JSONObject().put("type", "object")
+          .put("properties", JSONObject().put("summary", JSONObject().put("type", "string"))
+              .put("confident", JSONObject().put("type", "boolean")))
+          .put("required", JSONArray().put("summary").put("confident"))
+          .put("additionalProperties", false)
+      val answer = muse.structured(
+          "conversation recap",
+          "Summarize the conversation transcript so far for its wearer. Return JSON with a single " +
+              "natural second-person sentence (12 words or fewer) in summary, such as " +
+              "'You were talking about tacos for dinner.' Use only facts stated in the transcript. " +
+              "Do not use names, quote transcript fragments, mention recording, or give advice. " +
+              "Set confident=true if a clear topic is present; false only when the transcript is unclear.",
+          listOf(muse.textPart(text)), "conversation_recap", schema, maxTokens = 600,
+      )
+      val json = (answer as? MuseClient.Result.Ok)?.json
+      val summary = json?.optString("summary")?.trim().orEmpty()
+      val modelLine = if (json?.optBoolean("confident") == true && summary.isNotEmpty() &&
+          summary.split(Regex("\\s+")).size <= 20) {
+        _ui.value.people.fold(summary) { line, person ->
+          Regex("\\b${Regex.escape(person.name)}\\b", RegexOption.IGNORE_CASE).replace(line, "someone")
+        }
+      } else null
+      val guarded = modelLine?.let {
+        ResponseGuard.check(it, null, _ui.value.people) as? ResponseGuard.Decision.Pass
+      }
+      val fallback = "I couldn't summarize that clearly yet. Please try again."
+      if (guarded != null) speaker.say(guarded.line) else speakRecordStatus(fallback)
+      _ui.update { it.copy(liveConversationRecapRunning = false,
+          liveConversationLastRecap = guarded?.line?.text,
+          liveConversationStatus = if (guarded != null) "Muse recap sent to the glasses."
+              else "Muse could not make a clear recap; please try again.") }
     }
   }
 
@@ -331,7 +489,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   }
 
   override fun onCleared() {
-    tapTrigger?.stop()
+    stopLiveConversation()
     gateway.stopListening()
     speaker.shutdown()
     super.onCleared()

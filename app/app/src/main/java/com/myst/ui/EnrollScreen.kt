@@ -353,7 +353,7 @@ private fun PersonRow(
     }
     Text(
         if (person.memories.isEmpty()) "No memories yet. Add one the wearer will hear after the name."
-        else "Memories (the first one is spoken):",
+        else "Memories (first is spoken first, then they take turns):",
         style = MaterialTheme.typography.bodySmall,
         fontWeight = FontWeight.SemiBold,
     )

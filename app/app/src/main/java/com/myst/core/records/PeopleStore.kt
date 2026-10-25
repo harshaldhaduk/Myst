@@ -69,7 +69,7 @@ class PeopleStore(context: Context) {
   fun removeMemory(personId: String, index: Int): Person? =
       update(personId) { it.withoutMemory(index) }
 
-  /** The first memory is the one Myst speaks; this moves [index] to the front. */
+  /** The first memory is spoken first (then Myst rotates); this moves [index] to the front. */
   @Synchronized
   fun makeFirstMemory(personId: String, index: Int): Person? =
       update(personId) { it.withMemoryFirst(index) }

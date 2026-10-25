@@ -97,10 +97,21 @@ class FamiliarFaces(
    * Name first, then relationship (R2), then when she last saw them (D18), then one
    * caregiver-written memory if there is room under the 20-word limit.
    */
+  // The caregiver's first memory is spoken first; later asks rotate through the rest so a repeat
+  // "Who is this?" gives her something new to talk about. Resets when the app restarts.
+  private val memoryTurn = mutableMapOf<String, Int>()
+
+  private fun nextMemory(person: Person) =
+      person.memories.takeIf { it.isNotEmpty() }?.let { list ->
+        val i = memoryTurn.getOrDefault(person.id, 0)
+        memoryTurn[person.id] = i + 1
+        list[i % list.size]
+      }
+
   private fun whisperFor(person: Person, previous: Long?, now: Long): String {
     val relation = person.relationship.trim().lowercase().takeIf { it.isNotEmpty() }
     val base = if (relation != null) "${person.name}, your $relation." else "${person.name}."
-    val memory = person.memories.firstOrNull()?.text?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
+    val memory = nextMemory(person)?.text?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
     return VisitMemory.compose(base, VisitMemory.sentence(person.name, previous, now), memory?.let { "$it." })
   }
 }

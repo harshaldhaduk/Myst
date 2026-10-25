@@ -37,7 +37,7 @@ data class Person(
   fun withoutMemory(index: Int) =
       if (index in memories.indices) copy(memories = memories.filterIndexed { i, _ -> i != index }) else this
 
-  /** The first memory is the one Myst speaks. */
+  /** Spoken in order, starting with the first; Myst rotates on repeat asks. */
   fun withMemoryFirst(index: Int) =
       if (index in memories.indices) {
         copy(memories = listOf(memories[index]) + memories.filterIndexed { i, _ -> i != index })

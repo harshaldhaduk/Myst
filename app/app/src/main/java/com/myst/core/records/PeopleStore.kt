@@ -29,6 +29,7 @@ class PeopleStore(context: Context) {
       consentRecordedBy: String,
       photoJpeg: ByteArray?,
       photoSource: PhotoSource?,
+      memories: List<Memory> = emptyList(),
   ): Person {
     val id = UUID.randomUUID().toString()
     val photoFile = photoJpeg?.let { bytes -> "$id.jpg".also { File(dir, it).writeBytes(bytes) } }
@@ -41,6 +42,7 @@ class PeopleStore(context: Context) {
             consent = Consent(consentRecordedBy.trim(), now),
             photoFile = photoFile,
             photoSource = photoJpeg?.let { photoSource },
+            memories = memories,
             createdAtMillis = now,
         )
     write(all() + person)

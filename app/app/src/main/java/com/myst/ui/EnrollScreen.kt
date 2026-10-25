@@ -228,6 +228,12 @@ fun EnrollScreen(
             }
           }
         }
+        OutlinedButton(onClick = viewModel::loadDemoData) { Text("Load demo data (fictional)") }
+        Text(
+            "DEMO: adds Daniel (son) and Emily (granddaughter) with one memory and an earlier sighting each. " +
+                "No photos, so recognize them with the mock identity picker above.",
+            style = MaterialTheme.typography.bodySmall,
+        )
         CapabilityRow(VoiceCommands.capability)
         Row(verticalAlignment = Alignment.CenterVertically) {
           Switch(

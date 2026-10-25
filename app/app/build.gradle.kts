@@ -15,16 +15,8 @@ val localProperties =
       if (file.exists()) file.inputStream().use { load(it) }
     }
 
-// Muse key from the repo's git-ignored .env (team name MUSE_API_KEY; MODEL_API_KEY also read).
-// It is compiled into debug APKs, so never share an APK built with a key.
-val dotEnv: Map<String, String> =
-    rootDir.resolve("../.env").takeIf { it.exists() }?.readLines().orEmpty()
-        .mapNotNull { line ->
-          line.trim().takeIf { it.isNotEmpty() && !it.startsWith("#") && "=" in it }
-              ?.let { it.substringBefore("=").trim() to it.substringAfter("=").trim() }
-        }
-        .toMap()
-val museApiKey = dotEnv["MUSE_API_KEY"] ?: dotEnv["MODEL_API_KEY"] ?: ""
+// The Muse key is never compiled in: scripts/provision-muse-key.sh hands it to the installed app
+// over adb, and the app keeps it in the Android Keystore (core/secrets/MuseKeyStore.kt).
 
 // D12: automatic face identification is off unless a human sets myst.allowFaceId=true here.
 val allowFaceId = localProperties.getProperty("myst.allowFaceId", "false") == "true"
@@ -47,7 +39,6 @@ android {
     manifestPlaceholders["mwdat_client_token"] =
         localProperties.getProperty("mwdat_client_token", "")
 
-    buildConfigField("String", "MUSE_API_KEY", "\"${museApiKey.replace("\"", "")}\"")
     buildConfigField("boolean", "ALLOW_FACE_ID", allowFaceId.toString())
   }
 

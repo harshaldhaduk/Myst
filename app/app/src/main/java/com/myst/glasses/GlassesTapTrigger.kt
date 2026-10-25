@@ -7,6 +7,7 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.view.KeyEvent
@@ -54,7 +55,13 @@ class GlassesTapTrigger(private val context: Context, private val onTap: () -> U
           setCallback(
               object : MediaSession.Callback() {
                 override fun onMediaButtonEvent(intent: Intent): Boolean {
-                  val event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+                  // The typed overload is API 33; minSdk is 31.
+                  val event =
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+                      } else {
+                        @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT)
+                      }
                   if (event?.action == KeyEvent.ACTION_DOWN && event.keyCode in TAP_KEYS) tap("key ${event.keyCode}")
                   return true
                 }

@@ -3,8 +3,11 @@ package com.myst.muse
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
+import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -26,18 +29,29 @@ object MuseConfig {
  * Muse Spark over plain HTTPS (D5), Chat Completions format. Per kchperla's device run,
  * reasoning_effort "minimal" is required or the answer often comes back empty.
  * Logs task, latency and outcome only: never images, transcripts or the key.
+ *
+ * [apiKey] comes from MuseKeyStore (Android Keystore), not BuildConfig; it is read on the IO
+ * thread for each call, and null means no key was provisioned.
  */
-class MuseClient(private val apiKey: String) {
+class MuseClient(private val apiKey: () -> String?) {
   companion object {
     private const val TAG = "Myst:Muse"
   }
 
-  val hasKey: Boolean
-    get() = apiKey.isNotBlank()
+  /** Why a call gave no verdict. Callers say "I can't check right now", never "not sure". */
+  enum class FailKind {
+    NO_KEY,
+    AUTH,
+    TIMEOUT,
+    NETWORK,
+    HTTP,
+    /** Empty, refused, cut off or unparseable answer. */
+    BAD_ANSWER,
+  }
 
   sealed interface Result {
     data class Ok(val json: JSONObject, val ms: Long) : Result
-    data class Failed(val reason: String, val ms: Long) : Result
+    data class Failed(val reason: String, val ms: Long, val kind: FailKind = FailKind.BAD_ANSWER) : Result
   }
 
   /** A JPEG as a user-message image part. */
@@ -65,7 +79,8 @@ class MuseClient(private val apiKey: String) {
       withContext(Dispatchers.IO) {
         val t0 = SystemClock.elapsedRealtime()
         fun ms() = SystemClock.elapsedRealtime() - t0
-        if (!hasKey) return@withContext Result.Failed("no Muse key in .env", 0)
+        val key = apiKey()?.takeIf { it.isNotBlank() }
+            ?: return@withContext Result.Failed("no Muse key on this phone", 0, FailKind.NO_KEY)
         val body =
             JSONObject()
                 .put("model", model.also { require(!it.endsWith("-contributor")) })
@@ -93,12 +108,14 @@ class MuseClient(private val apiKey: String) {
               conn.connectTimeout = MuseConfig.TIMEOUT_MS
               conn.readTimeout = MuseConfig.TIMEOUT_MS
               conn.doOutput = true
-              conn.setRequestProperty("Authorization", "Bearer $apiKey")
+              conn.setRequestProperty("Authorization", "Bearer $key")
               conn.setRequestProperty("Content-Type", "application/json")
               conn.outputStream.use { it.write(body.toString().toByteArray()) }
               val code = conn.responseCode
-              if (code !in 200..299) {
-                Result.Failed("HTTP $code", ms())
+              if (code == 401 || code == 403) {
+                Result.Failed("HTTP $code", ms(), FailKind.AUTH)
+              } else if (code !in 200..299) {
+                Result.Failed("HTTP $code", ms(), FailKind.HTTP)
               } else {
                 val text = conn.inputStream.bufferedReader().use { it.readText() }
                 val choice = JSONObject(text).getJSONArray("choices").getJSONObject(0)
@@ -115,8 +132,15 @@ class MuseClient(private val apiKey: String) {
                   else -> Result.Ok(JSONObject(content), ms())
                 }
               }
+            } catch (e: CancellationException) {
+              throw e
+            } catch (e: SocketTimeoutException) {
+              Result.Failed("timeout", ms(), FailKind.TIMEOUT)
+            } catch (e: IOException) {
+              Result.Failed(e.javaClass.simpleName, ms(), FailKind.NETWORK)
             } catch (e: Exception) {
-              Result.Failed(e.javaClass.simpleName, ms())
+              // JSONException and friends: the answer came back but was not usable.
+              Result.Failed(e.javaClass.simpleName, ms(), FailKind.BAD_ANSWER)
             }
         when (result) {
           is Result.Ok -> Log.i(TAG, "$task ok ${result.ms}ms")

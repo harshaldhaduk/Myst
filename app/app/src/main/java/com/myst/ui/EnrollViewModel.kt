@@ -24,10 +24,9 @@ import com.myst.features.meds.DoseReminders
 import com.myst.features.meds.DoseSchedule
 import com.myst.features.meds.MedicineSummary
 import java.util.UUID
-import com.myst.features.faces.IdentityProvider
 import com.myst.features.faces.MuseIdentity
 import com.myst.muse.MuseClient
-import com.myst.features.faces.MockIdentity
+import com.myst.core.secrets.MuseKeyStore
 import com.myst.features.faces.WhisperResult
 import com.myst.features.VoiceCommands
 import com.myst.glasses.AndroidTtsSpeaker
@@ -98,35 +97,31 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   val ui: StateFlow<EnrollUiState> = _ui.asStateFlow()
 
   val speaker = AndroidTtsSpeaker(application)
-  val mockIdentity =
-      // Without face matching compiled in (D12), nobody is picked, so Myst answers "not sure".
-      MockIdentity(picked = { null })
 
-  /** D12: only exists when a human built with myst.allowFaceId=true. */
+  /** The Muse key lives in the Android Keystore, provisioned by scripts/provision-muse-key.sh. */
+  private val museKeys = MuseKeyStore(application)
+  private val muse = MuseClient(museKeys::key)
+
+  /** Null until checked; false means no key on this phone, so Muse calls cannot run. */
+  private val _museKeySet = MutableStateFlow<Boolean?>(null)
+  val museKeySet: StateFlow<Boolean?> = _museKeySet.asStateFlow()
+
+  /** D12: only exists when a human built with myst.allowFaceId=true. The only identity provider. */
   val museIdentity: MuseIdentity? =
       if (BuildConfig.ALLOW_FACE_ID) {
-        MuseIdentity(MuseClient(BuildConfig.MUSE_API_KEY)) {
-          // Reference photos: real glasses captures only, never Mock Device Kit placeholders.
+        MuseIdentity(muse) {
+          // Called on Dispatchers.IO by MuseIdentity. Reference photos: real glasses captures only,
+          // never Mock Device Kit placeholders.
           _ui.value.people
               .filter { it.photoSource == PhotoSource.GLASSES }
               .mapNotNull { p -> store.photo(p)?.readBytes()?.let { p to it } }
         }
       } else null
 
-  private val _autoIdentify = MutableStateFlow(false)
-  val autoIdentify: StateFlow<Boolean> = _autoIdentify.asStateFlow()
-
-  fun setAutoIdentify(on: Boolean) {
-    _autoIdentify.value = on && museIdentity != null
-  }
-
-  val identity: IdentityProvider
-    get() = museIdentity?.takeIf { _autoIdentify.value } ?: mockIdentity
-
   private val faces =
       FamiliarFaces(
           gateway,
-          { identity },
+          { museIdentity },
           speaker,
           people = { _ui.value.people },
           sightings = household::sightings,
@@ -139,6 +134,8 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   init {
     refreshPeople()
     refreshHousehold()
+    // Imports a freshly provisioned key (and wipes its plaintext file) at app start.
+    viewModelScope.launch(Dispatchers.IO) { _museKeySet.value = museKeys.hasKey() }
     // Fast demo timing has no switch any more; make sure an old setting cannot stay on.
     if (DoseReminders.fastDemo(application)) DoseReminders.setFastDemo(application, false)
     viewModelScope.launch(Dispatchers.IO) { DoseReminders.rescheduleAll(getApplication()) }
@@ -231,12 +228,13 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   fun householdPhoto(file: String): ByteArray? = household.photo(file)?.readBytes()
 
-  private val bottleCheck = BottleCheck(MuseClient(BuildConfig.MUSE_API_KEY))
+  private val bottleCheck = BottleCheck(muse)
 
   /** Test tool for D14: one glasses photo -> photo match + label read -> spoken verdict. */
   fun checkBottle(requestPermission: suspend (Permission) -> PermissionStatus) {
     if (_ui.value.checkingBottle || _ui.value.capturing) return
     _ui.update { it.copy(checkingBottle = true) }
+    speaker.earcon()
     viewModelScope.launch {
       val capture = gateway.capturePhoto(requestPermission)
       val view =
@@ -367,11 +365,11 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   /**
    * One switch for everything the wearer uses: listen for "Who is this?" and "What is this?",
-   * answer a tap on the glasses, and recognize faces when this build allows it (D12).
+   * and answer a tap on the glasses. Face recognition runs on each request (switch on or the phone
+   * button) only when this build allows it (D12).
    * Called from a tap, because the glasses mic permission needs a user action.
    */
   fun setMystOn(on: Boolean, requestPermission: suspend (Permission) -> PermissionStatus) {
-    setAutoIdentify(on)
     setTapTrigger(on, requestPermission)
     setListening(on, requestPermission)
     if (!on) _ui.update { it.copy(message = "Myst is resting.") }
@@ -392,6 +390,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   fun whoIsThis(requestPermission: suspend (Permission) -> PermissionStatus) {
     if (_ui.value.identifying || _ui.value.capturing) return
     _ui.update { it.copy(identifying = true) }
+    speaker.earcon()
     viewModelScope.launch {
       val result = faces.whoIsThis(requestPermission)
       _ui.update {
@@ -402,7 +401,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
                 LastSaid(
                     text = result.spoken ?: "Stayed quiet: the answer didn't pass the safety check.",
                     atMillis = System.currentTimeMillis(),
-                    quiet = result.spoken == null || result.spoken == FamiliarFaces.NOT_SURE,
+                    quiet = result.spoken == null || result.spoken in FamiliarFaces.NO_NAME_LINES,
                     note = result.note,
                 ),
             needsGlassesUpdate = result.glassesUpdateRequired,

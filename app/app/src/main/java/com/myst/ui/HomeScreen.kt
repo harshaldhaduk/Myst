@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myst.core.Capability
 import com.myst.core.Label
 import com.myst.features.VoiceCommands
@@ -68,6 +69,7 @@ fun HomeScreen(
   val connected = glasses is GlassesState.Connected
   val busy = ui.identifying || ui.capturing || ui.checkingBottle
   val faceMatch = viewModel.museIdentity != null
+  val museKeySet by viewModel.museKeySet.collectAsStateWithLifecycle()
 
   Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -94,7 +96,7 @@ fun HomeScreen(
           if (mystOn) {
             "Say \"Who is this?\" or \"What is this?\", or tap the glasses."
           } else {
-            "One switch for voice, glasses tap" + if (faceMatch) " and face recognition." else "."
+            "One switch for voice and glasses tap."
           },
           style = MaterialTheme.typography.bodyMedium,
           color = Myst.InkSoft,
@@ -108,6 +110,26 @@ fun HomeScreen(
           Text("Tapping the glasses still works.", style = MaterialTheme.typography.bodySmall, color = Myst.InkSoft)
           PillButton("Try voice again", { onMystOn(true) }, color = Myst.Blush)
         }
+      }
+      if (!faceMatch) {
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Face recognition isn't set up on this phone.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Myst.InkSoft,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+      }
+      if (museKeySet == false) {
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Muse key not set — run scripts/provision-muse-key.sh",
+            style = MaterialTheme.typography.bodySmall,
+            color = Myst.Rose,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
       }
       if (mystOn && faceMatch) {
         Spacer(Modifier.height(10.dp))
@@ -303,7 +325,7 @@ private fun AboutCard(viewModel: EnrollViewModel, camera: Capability) {
     AnimatedVisibility(open) {
       Column(Modifier.padding(start = 12.dp, end = 12.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         CapabilityRow(camera)
-        CapabilityRow(viewModel.museIdentity?.capability ?: viewModel.mockIdentity.capability.notInThisBuild())
+        CapabilityRow(viewModel.museIdentity?.capability ?: FACE_ID_NOT_IN_BUILD)
         CapabilityRow(viewModel.speaker.capability)
         CapabilityRow(VoiceCommands.capability)
         CapabilityRow(GlassesTapTrigger.capability)
@@ -319,11 +341,11 @@ private fun AboutCard(viewModel: EnrollViewModel, camera: Capability) {
   }
 }
 
-private fun Capability.notInThisBuild() =
+private val FACE_ID_NOT_IN_BUILD =
     Capability(
         "Face recognition",
         Label.MOCK,
-        "Not in this build, so Myst always answers \"I'm not sure who that is.\"",
+        "Not in this build: no photo is taken and Myst answers \"Face recognition isn't set up on this phone.\"",
         blockedBy = "myst.allowFaceId=true in local.properties (D12)",
     )
 

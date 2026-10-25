@@ -2,6 +2,9 @@ package com.myst.glasses
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import com.myst.core.Capability
 import com.myst.core.Label
@@ -13,6 +16,9 @@ interface Speaker {
 
   /** Queued, one line at a time. Accepts only lines that passed ResponseGuard. */
   fun say(line: GuardedLine)
+
+  /** A short tone the moment a trigger fires; speech queued right after waits for it to end. */
+  fun earcon()
 
   fun interrupt()
 
@@ -53,8 +59,23 @@ class AndroidTtsSpeaker(context: Context) : Speaker {
     )
   }
 
+  private val earconPlayer = Earcon()
+  private val main = Handler(Looper.getMainLooper())
+  @Volatile private var earconEndsAt = 0L
+
+  override fun earcon() {
+    earconEndsAt = SystemClock.elapsedRealtime() + Earcon.DURATION_MS
+    earconPlayer.play()
+  }
+
   override fun say(line: GuardedLine) {
-    if (ready) enqueue(line.text) else pending += line.text
+    // Never start speech on top of the tone: hold it until the tone has finished.
+    val wait = earconEndsAt - SystemClock.elapsedRealtime()
+    if (wait > 0) {
+      main.postDelayed({ say(line) }, wait)
+      return
+    }
+    main.post { if (ready) enqueue(line.text) else pending += line.text }
   }
 
   private fun enqueue(text: String) {
@@ -63,6 +84,7 @@ class AndroidTtsSpeaker(context: Context) : Speaker {
   }
 
   override fun interrupt() {
+    main.removeCallbacksAndMessages(null)
     pending.clear()
     tts.stop()
   }

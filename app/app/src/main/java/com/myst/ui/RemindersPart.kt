@@ -136,11 +136,11 @@ internal fun RemindersPart(viewModel: EnrollViewModel, ui: EnrollUiState) {
   }
 
   if (ui.medications.isNotEmpty()) {
-    Text(
-        "A missed dose alerts the caregiver on this phone. WhatsApp alerts are a mock for now (Q13). " +
-            "\"Reported taken\" means someone said so; it is not proof.",
-        style = MaterialTheme.typography.bodySmall,
-        color = Myst.InkSoft,
+    PillButton(
+        "Play demo reminder",
+        viewModel::previewReminder,
+        Modifier.fillMaxWidth(),
+        color = Myst.Periwinkle,
     )
   }
 }

@@ -146,6 +146,11 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   // MARK: - Dose reminders
 
+  fun previewReminder() {
+    _ui.value.medications.minByOrNull { it.doseMinuteOfDay }
+        ?.let { DoseReminders.preview(getApplication(), it) }
+  }
+
   /**
    * Called when the app comes back to the front, e.g. from the exact-alarm settings screen.
    * Newly granted access re-plans the alarms so they become exact.

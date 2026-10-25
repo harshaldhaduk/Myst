@@ -87,6 +87,15 @@ object DoseReminders {
     fire(context, med, DoseStage.REMIND, now)
   }
 
+  /** Play the real reminder wording once for a demo, without changing alarms or dose history. */
+  fun preview(context: Context, med: Medication) {
+    val lines = DoseSchedule.spokenLines(med, DoseStage.REMIND)
+    notify(context, CHANNEL_REMINDERS, "Demo reminder: ${med.labelName}", lines.joinToString(" "), med.id.hashCode())
+    val people = PeopleStore(context).all()
+    val guarded = lines.mapNotNull { (ResponseGuard.check(it, null, people) as? ResponseGuard.Decision.Pass)?.line?.text }
+    speak(context, guarded) {}
+  }
+
   private fun schedule(context: Context, med: Medication, doseTime: Long, skipFirst: Boolean = false) {
     val am = context.getSystemService(AlarmManager::class.java)
     val now = System.currentTimeMillis()

@@ -14,7 +14,9 @@ import com.myst.core.records.Place
 import com.myst.core.records.Person
 import com.myst.core.records.PhotoSource
 import com.myst.BuildConfig
+import com.myst.core.guard.ResponseGuard
 import com.myst.features.faces.FamiliarFaces
+import com.myst.features.meds.BottleCheck
 import com.myst.features.faces.IdentityProvider
 import com.myst.features.faces.MuseIdentity
 import com.myst.muse.MuseClient
@@ -51,6 +53,17 @@ data class EnrollUiState(
     val needsGlassesUpdate: Boolean = false,
     val places: List<Place> = emptyList(),
     val medications: List<Medication> = emptyList(),
+    val checkingBottle: Boolean = false,
+    val lastBottle: BottleCheckView? = null,
+)
+
+/** What the bottle test shows: both kinds of evidence and what was spoken. */
+data class BottleCheckView(
+    val spoken: String?,
+    val photoMatch: String,
+    val labelRead: String,
+    val detail: String,
+    val captureNote: String?,
 )
 
 class EnrollViewModel(application: Application) : AndroidViewModel(application) {
@@ -147,6 +160,63 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   }
 
   fun householdPhoto(file: String): ByteArray? = household.photo(file)?.readBytes()
+
+  private val bottleCheck = BottleCheck(MuseClient(BuildConfig.MUSE_API_KEY))
+
+  /** Test tool for D14: one glasses photo -> photo match + label read -> spoken verdict. */
+  fun checkBottle(requestPermission: suspend (Permission) -> PermissionStatus) {
+    if (_ui.value.checkingBottle || _ui.value.capturing) return
+    _ui.update { it.copy(checkingBottle = true) }
+    viewModelScope.launch {
+      val capture = gateway.capturePhoto(requestPermission)
+      val view =
+          if (capture !is CaptureResult.Ok) {
+            BottleCheckView(null, "-", "-", "", captureNote = "No photo: ${describe(capture)}")
+          } else {
+            val meds =
+                withContext(Dispatchers.IO) {
+                  _ui.value.medications.map { m ->
+                    m to m.bottlePhotoFiles.mapNotNull { household.photo(it)?.readBytes() }
+                  }
+                }
+            val r = bottleCheck.identify(capture.photo, meds)
+            val line =
+                when (val v = r.verdict) {
+                  is BottleCheck.Verdict.Identified ->
+                      "That's your ${v.medication.labelName}" +
+                          v.medication.plainDescription.takeIf(String::isNotBlank)?.let { ", $it" }.orEmpty() + "."
+                  BottleCheck.Verdict.Unsure -> "I can't tell which bottle that is. Please turn it so I can see the label."
+                }
+            val spoken =
+                when (val d = ResponseGuard.check(line, null, _ui.value.people)) {
+                  is ResponseGuard.Decision.Pass -> d.line.also(speaker::say).text
+                  is ResponseGuard.Decision.Block -> null
+                }
+            BottleCheckView(
+                spoken = spoken,
+                photoMatch =
+                    if (!r.bottleVisible) "no bottle seen"
+                    else r.photoMatch?.let { "${it.first.labelName} (${"%.2f".format(it.second)})" } ?: "no match",
+                labelRead =
+                    r.labelText?.let { "\"$it\"" + (r.labelMatch?.let { m -> " -> ${m.labelName}" } ?: " -> not one of hers") }
+                        ?: "unreadable",
+                detail = r.detail,
+                captureNote = null,
+            )
+          }
+      _ui.update { it.copy(checkingBottle = false, lastBottle = view) }
+    }
+  }
+
+  private fun describe(capture: CaptureResult): String =
+      when (capture) {
+        is CaptureResult.Ok -> "ok"
+        CaptureResult.Paused -> "glasses paused"
+        CaptureResult.CapabilityDenied -> "camera denied for this session"
+        CaptureResult.PermissionDenied -> "no camera permission"
+        CaptureResult.GlassesUpdateRequired -> "glasses need a software update"
+        is CaptureResult.Failed -> capture.reason
+      }
 
   private fun refreshHousehold() {
     viewModelScope.launch {

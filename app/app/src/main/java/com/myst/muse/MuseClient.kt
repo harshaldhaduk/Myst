@@ -60,6 +60,7 @@ class MuseClient(private val apiKey: String) {
       schema: JSONObject,
       reasoningEffort: String = "minimal",
       maxTokens: Int = MuseConfig.MAX_TOKENS,
+      model: String = MuseConfig.MODEL,
   ): Result =
       withContext(Dispatchers.IO) {
         val t0 = SystemClock.elapsedRealtime()
@@ -67,7 +68,7 @@ class MuseClient(private val apiKey: String) {
         if (!hasKey) return@withContext Result.Failed("no Muse key in .env", 0)
         val body =
             JSONObject()
-                .put("model", MuseConfig.MODEL)
+                .put("model", model.also { require(!it.endsWith("-contributor")) })
                 .put("reasoning_effort", reasoningEffort)
                 .put("max_tokens", maxTokens)
                 .put(

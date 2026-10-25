@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.myst.core.records.Medication
 import com.myst.core.records.Place
+import com.myst.features.meds.BottleCheck
 
 // Caregiver setup for Lane 3: rooms and medications. Reference photos come from the glasses photo
 // section above each tab, so they match what the wearer will see.
@@ -105,7 +106,33 @@ fun PlacesTab(viewModel: EnrollViewModel, ui: EnrollUiState) {
 }
 
 @Composable
-fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState) {
+private fun BottleTestSection(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle: () -> Unit) {
+  Section("What bottle is this? (test)") {
+    CapabilityRow(BottleCheck.capability)
+    Text(
+        "Hold one bottle close with the label toward the glasses, no faces in view. Try each " +
+            "bottle several times, and a bottle that is not hers: it must never say a wrong name.",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Button(onClick = onCheckBottle, enabled = !ui.checkingBottle && ui.medications.isNotEmpty()) {
+      Text(if (ui.checkingBottle) "Checking…" else "What bottle is this?")
+    }
+    ui.lastBottle?.let { b ->
+      b.captureNote?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+      if (b.captureNote == null) {
+        Text(b.spoken?.let { "Spoke: \"$it\"" } ?: "Silent (guard blocked)", fontWeight = FontWeight.SemiBold)
+        Text("Photo match: ${b.photoMatch}", style = MaterialTheme.typography.bodySmall)
+        Text("Label read: ${b.labelRead}", style = MaterialTheme.typography.bodySmall)
+        Text(b.detail, style = MaterialTheme.typography.bodySmall)
+      }
+    }
+  }
+}
+
+@Composable
+fun MedicationsTab(viewModel: EnrollViewModel, ui: EnrollUiState, onCheckBottle: () -> Unit) {
+  BottleTestSection(viewModel, ui, onCheckBottle)
+
   var editing by remember { mutableStateOf<Medication?>(null) }
   var labelName by remember { mutableStateOf("") }
   var description by remember { mutableStateOf("") }

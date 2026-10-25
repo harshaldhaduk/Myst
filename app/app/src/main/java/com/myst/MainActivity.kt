@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
           onWhoIsThis = { viewModel.whoIsThis(::requestWearablesPermission) },
           onListening = { on -> viewModel.setListening(on, ::requestWearablesPermission) },
           onOpenGlassesUpdate = { viewModel.openGlassesUpdate(this) },
+          onCheckBottle = { viewModel.checkBottle(::requestWearablesPermission) },
       )
     }
   }

@@ -59,6 +59,7 @@ fun EnrollScreen(
     onWhoIsThis: () -> Unit,
     onListening: (Boolean) -> Unit,
     onOpenGlassesUpdate: () -> Unit,
+    onCheckBottle: () -> Unit,
 ) {
   val ui by viewModel.ui.collectAsStateWithLifecycle()
   val listening by viewModel.gateway.isListening.collectAsStateWithLifecycle()
@@ -144,7 +145,7 @@ fun EnrollScreen(
       }
 
       if (tab == 1) {
-        MedicationsTab(viewModel, ui)
+        MedicationsTab(viewModel, ui, onCheckBottle)
       }
       if (tab == 2) {
         PlacesTab(viewModel, ui)

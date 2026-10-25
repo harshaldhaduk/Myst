@@ -13,7 +13,7 @@ Updated 02:45 by Codex
 - MuseClient no longer logs model-output snippets on malformed JSON; conversation text could otherwise appear in diagnostics.
 
 **In flight**
-- Conversation nudge stopped at its required device spike: DAT Speech coexistence is not established, the other speaker was not tested, and Spark returned BAD_ANSWER. D25 and its batch-upload amendment D26 remain Proposed. Medication as reminders only is done (D24, efc2270).
+- Conversation nudge stopped at its required device spike: DAT Speech coexistence is not established, the other speaker was not tested, and Spark returned BAD_ANSWER. Mayank accepted D25 and its batch-upload amendment D26 at 02:49; the stop rule still applies. Medication as reminders only is done (D24, efc2270).
 
 **Verified on device**
 - 02:20: efc2270 installed on the S23 Ultra with `adb install -r`; family data intact (screenshot check). No reminder fired then. The task handoff says the Muse key was provisioned afterward; this session did not inspect or reveal it.

@@ -54,7 +54,6 @@ import com.myst.features.meds.DoseSchedule
 import com.myst.glasses.GlassesState
 import com.myst.glasses.DatGlassesGateway
 import com.myst.ui.theme.Myst
-import java.util.Calendar
 
 @Composable
 fun HomeScreen(
@@ -80,7 +79,6 @@ fun HomeScreen(
     Row(verticalAlignment = Alignment.CenterVertically) {
       Column(Modifier.weight(1f)) {
         Text("Myst", style = MaterialTheme.typography.displaySmall)
-        Text(greeting(), style = MaterialTheme.typography.bodyMedium, color = Myst.InkSoft)
       }
       Column(horizontalAlignment = Alignment.End) {
         GlassesPill(glasses)
@@ -104,17 +102,6 @@ fun HomeScreen(
           },
           style = MaterialTheme.typography.headlineSmall,
           textAlign = TextAlign.Center,
-      )
-      Text(
-          if (mystOn) {
-            "Say \"Who is this?\" for a familiar face."
-          } else {
-            "One switch for voice commands."
-          },
-          style = MaterialTheme.typography.bodyMedium,
-          color = Myst.InkSoft,
-          textAlign = TextAlign.Center,
-          modifier = Modifier.padding(horizontal = 24.dp),
       )
       if (mystOn && ui.voiceProblem != null) {
         Spacer(Modifier.height(14.dp))
@@ -166,7 +153,7 @@ fun HomeScreen(
     // Backup for when voice and tap both fail: same path (earcon, glasses photo, Muse), kept quiet.
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
       QuietButton(
-          if (ui.identifying) "Looking…" else "Backup: Who is this?",
+          if (ui.identifying) "Looking…" else "Backup: Who am I looking at?",
           onWhoIsThis,
           enabled = connected && !busy,
       )
@@ -341,7 +328,7 @@ private fun LastSaidCard(said: LastSaid?) {
     SmallLabel("Last person Myst saw")
     if (said == null) {
       Text(
-          "Nothing yet. Ask \"Who is this?\" and the answer shows up here.",
+          "Nothing yet. Ask \"Who am I looking at?\" and the answer shows up here.",
           style = MaterialTheme.typography.bodyMedium,
           color = Myst.InkSoft,
       )
@@ -391,10 +378,3 @@ private val FACE_ID_NOT_IN_BUILD =
         "Not in this build: no photo is taken and Myst answers \"Face recognition isn't set up on this phone.\"",
         blockedBy = "myst.allowFaceId=true in local.properties (D12)",
     )
-
-private fun greeting(): String =
-    when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-      in 5..11 -> "Good morning"
-      in 12..16 -> "Good afternoon"
-      else -> "Good evening"
-    }

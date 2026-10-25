@@ -19,14 +19,14 @@ object VoiceCommands {
       Capability(
           "Voice: glasses commands",
           Label.EXPERIMENTAL,
-          "DAT Speech recognizes \"Who is this?\" and \"Start recording\" while Myst is on",
+          "DAT Speech recognizes \"Who am I looking at?\" and \"Start recording\" while Myst is on",
           blockedBy = "Speech may need enabling in Wearables Developer Center",
       )
 
   private val PATTERNS =
       mapOf(
           Command.WHO_IS_THIS to
-              listOf("who is this", "whos this", "who is that", "whos that", "who is it", "whos it"),
+              listOf("who am i looking at", "whom am i looking at"),
           Command.RECORD_CONVERSATION to listOf("start recording"),
       )
 

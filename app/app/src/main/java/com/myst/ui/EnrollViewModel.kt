@@ -245,7 +245,7 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
           )
       _ui.update {
         it.copy(
-            message = if (failure == null) "Listening for \"Who is this?\"" else null,
+            message = if (failure == null) "Listening for \"Who am I looking at?\"" else null,
             voiceProblem = failure?.let(::plainVoiceProblem),
             needsGlassesUpdate = failure?.contains("DAT software needs an update", ignoreCase = true) == true,
         )

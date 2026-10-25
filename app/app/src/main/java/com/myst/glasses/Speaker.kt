@@ -27,14 +27,14 @@ interface Speaker {
 
 /**
  * Android's built-in TextToSpeech. Meta has no TTS API, so this is the host OS, not Meta (Q11).
- * Plain media audio, which Android routes to the glasses over Bluetooth A2DP when they are connected.
+ * Assistant speech, which Android routes to the glasses over Bluetooth A2DP when connected.
  */
 class AndroidTtsSpeaker(context: Context) : Speaker {
   override val capability =
       Capability(
           "Speech out",
           Label.LIVE,
-          "Android OS TTS, played on the glasses over Bluetooth (not a Meta API)",
+          "Android OS TTS using assistant audio, played on the glasses over Bluetooth (not a Meta API)",
           blockedBy = "Q11 (is OS TTS acceptable under D5?)",
       )
 
@@ -53,7 +53,7 @@ class AndroidTtsSpeaker(context: Context) : Speaker {
     tts.setSpeechRate(0.85f)
     tts.setAudioAttributes(
         AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setUsage(AudioAttributes.USAGE_ASSISTANT)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build(),
     )
@@ -68,7 +68,7 @@ class AndroidTtsSpeaker(context: Context) : Speaker {
     main.post {
       tts.setAudioAttributes(
           AudioAttributes.Builder()
-              .setUsage(if (enabled) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
+              .setUsage(if (enabled) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_ASSISTANT)
               .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
               .build(),
       )

@@ -11,7 +11,7 @@ import kotlin.math.sin
 
 /**
  * A short soft tone the moment a trigger fires, so the wearer knows Myst heard her while the photo
- * and Muse call run. Android AudioTrack on media output (host OS, not Meta), which reaches the
+ * and Muse call run. Android AudioTrack uses assistant audio (host OS, not Meta), which reaches the
  * glasses over A2DP like the TTS. A sine with a gentle fade in and out, no sharp click.
  */
 class Earcon {
@@ -44,7 +44,7 @@ class Earcon {
           AudioTrack.Builder()
               .setAudioAttributes(
                   AudioAttributes.Builder()
-                      .setUsage(AudioAttributes.USAGE_MEDIA)
+                      .setUsage(AudioAttributes.USAGE_ASSISTANT)
                       .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                       .build(),
               )

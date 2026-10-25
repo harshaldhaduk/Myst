@@ -114,3 +114,9 @@ When the team answers one, delete it here and log the answer below as a decision
 **Decision:** The trigger is the spoken phrase "Who is this?" (and "What is this?" for medication) through the Meta DAT Speech module, labeled experimental, with a phone button as fallback. Answers are spoken by Android's built-in TextToSpeech over Bluetooth, labeled as OS speech, not Meta.
 **Why:** Meta's docs offer no custom glasses button command for apps and no text-to-speech in the Model API; this is the working path RJ built and ran on real glasses.
 **Affects:** `app/` Speech and Speaker code; Q3, Q11; D5 reading (Android TTS counts as the host OS); a human should accept or change this.
+
+### D18 · Proposed · 00:40 · kchperla, direct instruction recorded by Claude Code
+**Decision:** Myst keeps a visit memory: each time an enrolled person is recognized on request, it logs a VISIT event (time and identity source only). On a later "Who is this?" the whisper adds when she last saw that person, for example "Daniel, your son. You saw Daniel today at 1 PM." Sightings within 30 minutes of each other count as one encounter, so a repeat ask says the earlier encounter, not "2 minutes ago". Nothing is said for a first sighting or one older than 6 days. VISIT events older than 30 days are deleted, and revoking a person deletes their visits.
+**Why:** The user wants a stable memory that reminds her of earlier meetings. This extends the one social-connection story with data Myst itself recorded, so no memory is invented.
+**Affects:** `FamiliarFaces`, `HouseholdStore`, `EnrollViewModel`; the 20-word guard (visit sentence is added before the caregiver memory, which is dropped if it does not fit); retention rule in `AGENTS.md` (VISIT holds no frames or faces); a sighting made through MockIdentity is logged as MOCK. It records "last recognized by Myst", not proof of a visit.
+

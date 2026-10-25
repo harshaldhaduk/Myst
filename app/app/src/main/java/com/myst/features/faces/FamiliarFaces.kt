@@ -5,9 +5,12 @@ import com.meta.wearable.dat.core.types.Permission
 import com.meta.wearable.dat.core.types.PermissionStatus
 import com.myst.core.guard.ResponseGuard
 import com.myst.core.records.Person
+import com.myst.core.records.VisitMemory
 import com.myst.glasses.CaptureResult
 import com.myst.glasses.GlassesGateway
 import com.myst.glasses.Speaker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class WhisperResult(
     val identityLabel: String,
@@ -28,6 +31,10 @@ class FamiliarFaces(
     private val identity: () -> IdentityProvider,
     private val speaker: Speaker,
     private val people: () -> List<Person>,
+    /** D18 visit memory: earlier sightings of a person, and a way to log this one. */
+    private val sightings: (String) -> List<Long> = { emptyList() },
+    private val recordSighting: (personId: String, atMillis: Long, detail: String) -> Unit = { _, _, _ -> },
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
   companion object {
     const val NOT_SURE = "I'm not sure who that is."
@@ -53,11 +60,20 @@ class FamiliarFaces(
     val who = provider.identify(if (provider.usesPhoto) photo else null)
 
     val everyone = people()
+    val now = clock()
     val (text, source) =
         when (who) {
-          is Identity.Match -> whisperFor(who.person) to who.person
+          is Identity.Match -> {
+            // Read the earlier sighting before logging this one, off the main thread.
+            val before = withContext(Dispatchers.IO) { sightings(who.person.id) }
+            whisperFor(who.person, VisitMemory.previousEncounter(before, now), now) to who.person
+          }
           Identity.Unsure -> NOT_SURE to null
         }
+    // Only a match is logged: uncertain or silent answers never create a memory of a visit.
+    (who as? Identity.Match)?.let { m ->
+      withContext(Dispatchers.IO) { recordSighting(m.person.id, now, provider.capability.label.name) }
+    }
     val decision = ResponseGuard.check(text, source, everyone)
     val spoken =
         when (decision) {
@@ -77,11 +93,14 @@ class FamiliarFaces(
     )
   }
 
-  /** Name first, then relationship, then one caregiver-written memory if there is one (R2). */
-  private fun whisperFor(person: Person): String {
+  /**
+   * Name first, then relationship (R2), then when she last saw them (D18), then one
+   * caregiver-written memory if there is room under the 20-word limit.
+   */
+  private fun whisperFor(person: Person, previous: Long?, now: Long): String {
     val relation = person.relationship.trim().lowercase().takeIf { it.isNotEmpty() }
     val base = if (relation != null) "${person.name}, your $relation." else "${person.name}."
-    val memory = person.memories.firstOrNull()?.text?.trim()?.trimEnd('.')
-    return if (memory.isNullOrEmpty()) base else "$base $memory."
+    val memory = person.memories.firstOrNull()?.text?.trim()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
+    return VisitMemory.compose(base, VisitMemory.sentence(person.name, previous, now), memory?.let { "$it." })
   }
 }

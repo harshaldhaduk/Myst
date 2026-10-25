@@ -29,6 +29,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +47,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myst.core.Capability
 import com.myst.core.Label
 import com.myst.core.records.Person
+import com.myst.core.records.EventType
 import com.myst.core.records.PhotoSource
+import com.myst.core.records.VisitMemory
 import com.myst.features.VoiceCommands
 import com.myst.glasses.GlassesState
 
@@ -168,7 +171,19 @@ fun EnrollScreen(
       if (tab == 0) Section("Enrolled family (${ui.people.size})") {
         if (ui.people.isEmpty()) Text("Nobody yet.")
         ui.people.forEach { person ->
-          PersonRow(person, viewModel.photoBytes(person)) { viewModel.revoke(person) }
+          val last = ui.events.filter { it.type == EventType.VISIT && it.personId == person.id }.maxOfOrNull { it.atMillis }
+          val now = System.currentTimeMillis()
+          PersonRow(
+              person,
+              viewModel.photoBytes(person),
+              lastSeen =
+                  when {
+                    last == null -> "Not recognized yet"
+                    else -> "Last recognized: " + (VisitMemory.whenPhrase(last, now) ?: "more than a week ago")
+                  },
+              onBackfill = { viewModel.backfillSighting(person, 5) },
+              onRevoke = { viewModel.revoke(person) },
+          )
         }
       }
 
@@ -297,16 +312,26 @@ private fun EnrollForm(hasPhoto: Boolean, onSave: (String, String, String) -> Un
 }
 
 @Composable
-private fun PersonRow(person: Person, photo: ByteArray?, onRevoke: () -> Unit) {
+private fun PersonRow(
+    person: Person,
+    photo: ByteArray?,
+    lastSeen: String,
+    onBackfill: () -> Unit,
+    onRevoke: () -> Unit,
+) {
   Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
     if (photo != null) JpegImage(photo, Modifier.size(56.dp))
     Column(Modifier.weight(1f)) {
       Text(person.name, fontWeight = FontWeight.SemiBold)
       Text(person.relationship.ifBlank { "—" }, style = MaterialTheme.typography.bodySmall)
       Text("Consent recorded by ${person.consent.recordedBy}", style = MaterialTheme.typography.bodySmall)
+      Text(lastSeen, style = MaterialTheme.typography.bodySmall)
       if (person.photoSource == PhotoSource.MOCK_DEVICE_KIT) LabelChip(Label.MOCK)
     }
-    OutlinedButton(onClick = onRevoke) { Text("Revoke") }
+    Column(horizontalAlignment = Alignment.End) {
+      OutlinedButton(onClick = onRevoke) { Text("Revoke") }
+      TextButton(onClick = onBackfill) { Text("Demo: seen 5 h ago") }
+    }
   }
 }
 

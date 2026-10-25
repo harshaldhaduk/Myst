@@ -107,7 +107,18 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
   val identity: IdentityProvider
     get() = museIdentity?.takeIf { _autoIdentify.value } ?: mockIdentity
 
-  private val faces = FamiliarFaces(gateway, { identity }, speaker, people = { _ui.value.people })
+  private val faces =
+      FamiliarFaces(
+          gateway,
+          { identity },
+          speaker,
+          people = { _ui.value.people },
+          sightings = household::sightings,
+          recordSighting = { id, at, detail ->
+            household.logSighting(id, at, detail)
+            refreshHousehold()
+          },
+      )
 
   init {
     refreshPeople()
@@ -326,6 +337,20 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
     mockKit.simulateSpeech("Who is this?")?.let { f -> _ui.update { it.copy(message = f) } }
   }
 
+  /** DEMO CONTROL: pretend this person was last recognized [hoursAgo] hours ago (labeled DEMO in the log). */
+  fun backfillSighting(person: Person, hoursAgo: Int) {
+    viewModelScope.launch(Dispatchers.IO) {
+      household.logSighting(
+          person.id,
+          System.currentTimeMillis() - hoursAgo * 3_600_000L,
+          "DEMO backfill",
+          force = true,
+      )
+      refreshHousehold()
+      _ui.update { it.copy(message = "Demo: ${person.name} was last seen $hoursAgo h ago.") }
+    }
+  }
+
   fun whoIsThis(requestPermission: suspend (Permission) -> PermissionStatus) {
     if (_ui.value.identifying || _ui.value.capturing) return
     _ui.update { it.copy(identifying = true) }
@@ -440,7 +465,10 @@ class EnrollViewModel(application: Application) : AndroidViewModel(application) 
 
   fun revoke(person: Person) {
     viewModelScope.launch {
-      withContext(Dispatchers.IO) { store.revoke(person.id) }
+      withContext(Dispatchers.IO) {
+        store.revoke(person.id)
+        household.deleteSightings(person.id)
+      }
       _ui.update { it.copy(message = "Removed ${person.name} and their photo.") }
       refreshPeople()
     }

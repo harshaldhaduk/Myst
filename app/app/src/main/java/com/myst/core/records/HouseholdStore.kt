@@ -75,6 +75,40 @@ class HouseholdStore(context: Context) {
   @Synchronized
   fun log(event: Event) = write("events.json", events() + event) { it.toJson() }
 
+  // MARK: - Visit memory (D18)
+
+  /** When this person was last recognized, oldest first. Times only, no photos. */
+  @Synchronized
+  fun sightings(personId: String): List<Long> =
+      events().filter { it.type == EventType.VISIT && it.personId == personId }.map { it.atMillis }.sorted()
+
+  /**
+   * Logs one recognition. A repeat within [VisitMemory.DEDUPE_MS] is not stored, and VISIT events
+   * older than [VisitMemory.KEEP_DAYS] are deleted in the same write. [force] is for the demo
+   * control, which backfills an earlier sighting.
+   */
+  @Synchronized
+  fun logSighting(personId: String, atMillis: Long, detail: String, force: Boolean = false) {
+    val all = events()
+    val near =
+        all.any {
+          it.type == EventType.VISIT &&
+              it.personId == personId &&
+              kotlin.math.abs(atMillis - it.atMillis) <= VisitMemory.DEDUPE_MS
+        }
+    if (near && !force) return
+    val kept = all.filterNot { VisitMemory.expired(it, atMillis) }
+    write("events.json", kept + Event(UUID.randomUUID().toString(), EventType.VISIT, atMillis, personId, detail = detail)) {
+      it.toJson()
+    }
+  }
+
+  /** Consent revoked: forget every sighting of this person. */
+  @Synchronized
+  fun deleteSightings(personId: String) {
+    write("events.json", events().filterNot { it.type == EventType.VISIT && it.personId == personId }) { it.toJson() }
+  }
+
   // MARK: - Photos
 
   fun photo(file: String): File? = File(photos, file).takeIf { it.exists() }

@@ -19,6 +19,10 @@ Lane choice is provisional: taken because this person has the phone and glasses.
 - Not yet measured: timed capture median, end-to-end latency over 20 runs.
 
 **In flight**
+- Visit memory (branch `kchperla/visit-memory`, D18 Proposed): remember when each enrolled person was last recognized, and add "You saw Daniel at 1 PM." to the next whisper. Touches RJ's files `features/faces/FamiliarFaces.kt`, `core/records/HouseholdStore.kt`, `core/records/Schema.kt` (no new event kind; uses VISIT) and `ui/EnrollViewModel.kt` / `ui/EnrollScreen.kt` (one demo control). Coordinate with RJ before merging.
+  - Built: `core/records/VisitMemory.kt` (encounter rule, wording, 20-word composer, 30-day expiry), `HouseholdStore.logSighting/sightings/deleteSightings`, `FamiliarFaces` (reads earlier sightings, then logs a match), revoke deletes sightings, Family tab shows "Last recognized", demo button "Demo: seen 5 h ago".
+  - Checked: app compiles (assembleDebug). 23 scenario checks of `VisitMemory` ran on the JVM through a throwaway harness outside the repo (1 PM then 6 PM, repeat ask in one meeting, 7 days silent, midnight crossing, word limit, expiry): all pass. No JUnit in the repo yet (D13 Proposed), so these are not committed as tests.
+  - Not yet run on a device: store writes, revoke cleanup, and the spoken line through the glasses.
 - Spike from hub/LOOP.md section 5, step 1: build the DAT Android sample and run it with Mock Device Kit, then on the real glasses.
 
 **Blocked, or need from someone**

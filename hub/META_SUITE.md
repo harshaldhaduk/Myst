@@ -2,25 +2,26 @@
 
 Read this before any technical work. It is the platform reference for D3/D5 (Meta only) and feeds the PRD capability table. Proposed as D11.
 
-**Status: docs read on 2026-10-24. Nothing here has been run on a device.** Pages were read through a summarizing fetch tool, so confirm exact class and method names against the SDK version we pin and its sample app before coding. Evidence labels:
+**Status: docs read on 2026-10-24. Items labeled [Verified on device] ran on our S23 Ultra (Android 16, Meta AI app 295.0.0.37.164) and glasses (Bluetooth name RB Meta 02WM, firmware not recorded) on 2026-10-24/25, per `hub/status/`; everything else is still docs only.** Pages were read through a summarizing fetch tool, so confirm exact class and method names against the SDK version we pin and its sample app before coding. Evidence labels:
 
 - **[Docs]** Meta's own page, read 2026-10-24.
 - **[Reported]** GitHub issue, news or third-party write-up. Treat as unverified.
 - **[Inferred]** Our reading of the above, or general knowledge not on a page we read.
 - **[Unknown]** Not found. Resolve on the device or with Meta before relying on it.
+- **[Verified on device]** Ran on our phone and glasses; the full list is `AGENTS.md` "Verified implementation facts".
 
 ## 0. Read this first
 
 1. **The camera is reachable only through the Wearables Device Access Toolkit (DAT)** on a phone app. Meta says only DAT can use the glasses' camera or capture mic audio; Web Apps and Connectors cannot. [Docs]
 2. **There is no Meta API to play audio on the glasses.** They are a Bluetooth headset: normal Android audio output reaches them over A2DP. **Meta's Model API has no text-to-speech** ("It does not synthesize speech or provide a speech-to-speech conversation API"). Speech out is an open decision (Q11). [Docs]
-3. **Face identification is policy-gated.** The Wearables Developer AUP bars "unique identification of people based on physical characteristics, such as voices and faces", with exceptions "for specific use cases, including accessibility apps, with prior Meta approval." No request channel is documented, and Meta's GitHub tracker explicitly refuses such requests. No Meta face-matching API exists. Treat identity as a labeled mock until a human has approval in writing (D7). See section 6. [Docs]
+3. **Face identification is policy-gated.** The Wearables Developer AUP bars "unique identification of people based on physical characteristics, such as voices and faces", with exceptions "for specific use cases, including accessibility apps, with prior Meta approval." No request channel is documented, and Meta's GitHub tracker explicitly refuses such requests. No Meta face-matching API exists. Without written approval, identity runs only as D12's private, consented dev testing (Accepted by RJ), never presented as Meta-approved. See section 6. [Docs]
 4. **Meta's Model API (Muse Spark etc.) is plain HTTPS**, OpenAI- and Anthropic-compatible, base URL `https://api.meta.ai/v1`. It does vision, structured output, tool calling and speech-to-text. [Docs]
 5. **Never use the `-contributor` model variants for anything about people.** Contributor mode is cheaper because you grant permission to train future Meta models on your content. Use Standard mode. [Docs]
 6. **DAT is brand new and rough.** 1.0 rolls out from 2026-09-30; current pinned example is 1.0.1 needing Meta AI app V292 and glasses firmware V128. Voice Invocations, Inputs, Speech, Audio Streaming and standalone photo capture are experimental, and experimental features cannot ship in production without Meta's written permission. Fine for a hackathon, but label them. [Docs]
 7. **"Hey Meta" can launch our app but cannot carry a custom command like "who is this".** Invocation is gated by Developer Center setup and has reported failures in Developer Mode. [Docs, Reported]
-8. **Developer Mode allows only one third-party app registered at a time**, resets on some updates, and uses `APPLICATION_ID` and `CLIENT_TOKEN` of `0`. [Docs]
+8. **Developer Mode allows only one third-party app registered at a time**, resets on some updates, and uses `APPLICATION_ID` and `CLIENT_TOKEN` of `0` [Docs]. Registration with these left blank (the DAT 1.0.1 default) worked on our glasses [Verified on device].
 9. **Caregiver alerts via WhatsApp Cloud API need an approved template** for any message we start, and a server-held access token (a token inside the APK is a leak). Decision Q13. [Docs, Inferred]
-10. **Latency is unmeasured by us.** Meta publishes none. Nothing in the PRD's 3-second target is proven. [Unknown]
+10. **Latency is only partly measured.** Meta publishes none. Muse Spark answered a glasses photo in 0.98 s with `reasoning_effort: minimal` (one run) and face-match calls took 1.5-2.5 s (5 runs); capture time and end-to-end trigger-to-speech are not measured. The PRD's 3-second target is not proven. [Verified on device, partial]
 
 ## 1. The suite at a glance
 
@@ -64,7 +65,7 @@ Our Android app is the host. The glasses talk to the phone over Bluetooth; the M
 | 1.0.0 | V290 | V128 | Adds Meta AI-initiated registration (`Wearables.handleIntent`) |
 | 0.9.0 | V282 | V126 (Display V125) | |
 
-A device that meets the minimums can still return `DeviceSessionError.CAPABILITY_DENIED`; handle it as an expected outcome. [Docs]
+A device that meets the minimums can still return `DeviceSessionError.CAPABILITY_DENIED`; handle it as an expected outcome. [Docs] On our glasses, capture also refused with `START_ERROR_DAT_APP_ON_THE_GLASSES_UPDATE_REQUIRED` and `START_ERROR_DEVICE_UNAVAILABLE`; both cleared after reconnecting. [Verified on device]
 
 ### 3.3 Registration and permissions
 
@@ -83,19 +84,20 @@ A device that meets the minimums can still return `DeviceSessionError.CAPABILITY
 - `camera.stream.videoStream` emits frames: YUV by default, or HEVC when `compressVideo = true` (we decode ourselves).
 - `camera.stream.capturePhoto()` works only while streaming; returns `PhotoData.Bitmap` or `PhotoData.HEIC`; a second concurrent capture fails with `CaptureError.CaptureInProgress`.
 - Standalone high-quality capture via `camera.photo` (stop any stream first, wait for `PhotoState.STARTED`). **Experimental, not for production publishing.**
-- Cleanup order: `camera.stop()`, `session.removeCamera()`, `session.stop()`.
+- Cleanup order: `camera.stop()`, `session.removeCamera()`, `session.stop()` (`removeCamera` confirmed in the 1.0.1 library by javap).
+- Stream at MEDIUM/15 fps then `capturePhoto()` delivered glasses photos to Myst (76 and 102 KB JPEG). Capture time not timed. [Verified on device]
 - Bluetooth bandwidth, real latency, battery and thermal behavior: not documented on pages read. [Unknown] LOOP.md quotes a downscale rule from search results; confirm on the camera guide. [Docs]
 
 ### 3.6 Audio
 
-- **Playback to the wearer:** no DAT call. Use normal Android audio output; it routes to the glasses over A2DP (output only, stereo 44.1/48 kHz, suits music and TTS). [Docs]
-- **Mic capture:** Bluetooth HFP (bidirectional, mono 8 or 16 kHz, beamformed to the wearer). On Android 12+, pick the `TYPE_BLUETOOTH_SCO` device from `availableCommunicationDevices`, set `MODE_IN_COMMUNICATION`, call `setCommunicationDevice`. [Docs]
+- **Playback to the wearer:** no DAT call. Use normal Android audio output; it routes to the glasses over A2DP (output only, stereo 44.1/48 kHz, suits music and TTS). [Docs] Phone audio heard on the glasses with Meta's sample, not timed. [Verified on device]
+- **Mic capture:** Bluetooth HFP (bidirectional, mono 8 or 16 kHz, beamformed to the wearer). On Android 12+, pick the `TYPE_BLUETOOTH_SCO` device from `availableCommunicationDevices`, set `MODE_IN_COMMUNICATION`, call `setCommunicationDevice`. [Docs] One silent clip, then one with sound; unexplained. [Verified on device]
 - **A2DP and HFP are mutually exclusive.** While HFP is active, output drops to mono voice quality. Meta's iOS guidance: start HFP and let the route settle (their example waits 2 s) before starting the camera stream, or the audio route "can fail silently". [Docs]
 - **Camera-stream audio (beta):** set `AudioCodec.PCM` on the stream config and collect `audioStream`; 16-bit PCM at 16, 44.1 or 48 kHz, stays on A2DP. Dev and beta release channels only. [Docs]
 
 ### 3.7 Speech, inputs, motion, voice invocation (all experimental)
 
-- **Speech:** `session.addSpeech`, flows for `state`, `locale`, `errors`, `transcriptions` (partial and final). Needs the DAT mic permission, granted from a user action. The README calls it on-device recognition. Where it actually runs and its accuracy are [Unknown].
+- **Speech:** `session.addSpeech`, flows for `state`, `locale`, `errors`, `transcriptions` (partial and final). Needs the DAT mic permission, granted from a user action. The README calls it on-device recognition. Where it actually runs and its accuracy are [Unknown]. A Speech session starts on our glasses (`RESPONSE_STATUS_OK`) and ends after about 60 s; that a spoken phrase fired Myst's action is not recorded. [Verified on device, partial]
 - **Inputs:** navigation, button, capture and drag events from the glasses. Needs capability approval in the Developer Center. The earlier "no documented glasses button event" finding in LOOP.md is superseded: the capability exists but is gated. [Docs]
 - **Motion:** accelerometer, gyroscope, magnetometer, orientation; sensor fields are nullable.
 - **Voice Invocations:** wearer says "Hey Meta, start <app name>". Meta AI launches or foregrounds our app and sends an invocation on a `Wearables`-level stream (no session needed). Check `isVoiceInvocationsIntent(intent)` in `onCreate` and `onNewIntent`; collect `Wearables.startVoiceInvocationsStream(...)`; answer every invocation exactly once with `sendSuccess` or `sendFailure`. The app name is the keyword (configured in the Developer Center, clear phonetics, avoid "AI" in the name). Phrases cannot be declared in the app; this launches the app, it does not deliver "who is this". A WebMCP web app in the foreground on the glasses captures the request instead. [Docs]
@@ -115,7 +117,7 @@ Developer Mode and invite-only release channels only. Meta's own review is requi
 
 ## 4. Meta Model API
 
-Base URL `https://api.meta.ai/v1`, bearer token in `MODEL_API_KEY`. Protocols: Responses API (recommended), Chat Completions (OpenAI-compatible), Messages (Anthropic-compatible). A bad key returns 401 `invalid_api_key`. We call it with plain HTTPS (D5), not a third-party SDK. [Docs]
+Base URL `https://api.meta.ai/v1`, bearer token in `MODEL_API_KEY` (the team's `.env` uses `MUSE_API_KEY`). `muse-spark-1.3` Chat Completions with an image data URI works; default reasoning returned empty content 2 of 3 runs, so set `reasoning_effort`; a `reasoning` object is rejected (400). [Verified on device] Protocols: Responses API (recommended), Chat Completions (OpenAI-compatible), Messages (Anthropic-compatible). A bad key returns 401 `invalid_api_key`. We call it with plain HTTPS (D5), not a third-party SDK. [Docs]
 
 | Model | ID | Does | Price per 1M tokens (in/out) |
 |---|---|---|---|
@@ -128,7 +130,7 @@ Base URL `https://api.meta.ai/v1`, bearer token in `MODEL_API_KEY`. Protocols: R
 
 Rate limits are per team: Spark 3,000 RPM and 4M TPM; Muse Image 150 RPM; Voice Transcribe 256 concurrent streams and 16,000 streams per hour; SAM 3,000 RPM. Free credits are not stated on the pricing page (the track gate doc says $50; a separate Meta hackathon reportedly says $150, a different event). [Docs, Reported]
 
-**Image understanding** (what the bottle check and any scene question use): images go only in `user` messages as a public URL, base64 data URL, or Files API id. Limits: 50 images per request, 50 MB inline, JPEG, PNG, GIF, WebP, ICO. Tasks: describe, answer questions, extract text and data from documents, identify objects and relations, and localize objects as points or boxes on a 0 to 1000 normalized grid. A roughly 1280 px image costs about 1,300 to 1,500 tokens. The page has **no caveat about faces or identifying people**: whether Muse Spark will name or match people is [Unknown] and must be tested; do not assume it refuses or complies. [Docs]
+**Image understanding** (what the bottle check and any scene question use): images go only in `user` messages as a public URL, base64 data URL, or Files API id. Limits: 50 images per request, 50 MB inline, JPEG, PNG, GIF, WebP, ICO. Tasks: describe, answer questions, extract text and data from documents, identify objects and relations, and localize objects as points or boxes on a 0 to 1000 normalized grid. A roughly 1280 px image costs about 1,300 to 1,500 tokens. The page has **no caveat about faces or identifying people** [Docs]. Muse Spark did compare a glasses photo with consented reference photos: 5 of 5 "match" verdicts at 0.95-0.99 (D12 dev testing); no stranger or no-face trials yet, so its false-match behavior is [Unknown]. [Verified on device, partial]
 
 **Structured output:** `text.format` with `type: "json_schema"` (Responses) or `response_format` (Chat Completions); generation is constrained to the schema; `strict: true` enforces a stricter subset; recursion is rejected; you still parse the JSON string yourself. Use it for the bottle-check verdict and the response composer so the guard can reject malformed output. **Tool calling:** `tools` with function definitions; `tool_choice` must be `"auto"`; always validate arguments yourself. [Docs]
 
@@ -163,24 +165,24 @@ Graph API: `POST /<phone_number_id>/messages` with a JSON body. A test business 
 
 **Context:** Meta reportedly kept an inactive face-recognition feature ("NameTag") in its Meta AI app, and reportedly disabled it on 2026-06-05 after press coverage; the Texas Attorney General opened an investigation into Meta's glasses in May 2026. [Reported] Texas also has a biometric-identifier consent law; our demo uses consenting participants, but confirm handling with the organizers. [Inferred, not legal advice]
 
-**Consequence for Myst:** there is no Meta-only, policy-clean way to identify a face today. Muse Spark could plausibly be prompted with a live frame and consented reference photos [Inferred, untested], but that is still identification by face under the AUP, gives no calibrated confidence (so the PRD's zero-wrong-name rule cannot be demonstrated), and needs the exception first. Keep identity behind one interface and ship it as a labeled mock until a human records written approval (D7, G05).
+**Consequence for Myst:** there is no Meta-only, policy-clean way to identify a face today. Muse Spark can be prompted with a live frame and consented reference photos (5 of 5 match verdicts on device, section 4), but that is still identification by face under the AUP, gives no calibrated confidence (so the PRD's zero-wrong-name rule needs negative trials before it can be claimed), and is not covered by an exception. The team accepted that risk for private, consented testing only (D12, Accepted by RJ; D16 verbal, not approval). Keep identity behind one interface (D7) and never present it as Meta-approved (G05).
 
 ## 7. Capability table, answered
 
-Mirrors the PRD table. Detail and sources are in sections 3 to 6.
+Mirrors the PRD table, which also records what is built on `main`. Detail and sources are in sections 3 to 6.
 
 | Need | Finding | Proposed demo treatment |
 |---|---|---|
-| Glasses model and developer access | DAT lists six models; needs V128 firmware and Meta AI V292 [Docs]. Our model is Q1. | Live, once Q1 is answered |
-| Camera frames | DAT stream or single photo. Photo capture formats Bitmap or HEIC [Docs]. Real latency [Unknown]. | Live; use one photo per request |
-| Audio to wearer | No DAT call; Android audio over A2DP [Docs] | Live |
-| Speech out | No Meta TTS [Docs] | Needs Q11. Android TextToSpeech (OS) or pre-recorded clips labeled mock |
-| Speech in | HFP mic plus Muse Voice Transcribe realtime, or DAT Speech (experimental) [Docs] | Live; HFP drops audio quality while active |
-| Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Pick in Q3; keep a labeled demo control (R15) |
-| Person identification | Policy-gated, no Meta matcher [Docs] | Labeled mock behind one interface (D7) |
+| Glasses model and developer access | DAT lists six models; needs V128 firmware and Meta AI V292 [Docs]. Registration works on ours [Verified on device]. Marketing model and firmware are Q1. | Live |
+| Camera frames | DAT stream or single photo; Bitmap or HEIC [Docs]. One photo per request reaches Myst [Verified on device]. Latency not timed. | Live; one photo per request |
+| Audio to wearer | No DAT call; Android audio over A2DP [Docs]. Heard on the glasses with Meta's sample [Verified on device]. | Live |
+| Speech out | No Meta TTS [Docs] | Android TextToSpeech, labeled OS (D17, Proposed) |
+| Speech in | HFP mic plus Muse Voice Transcribe realtime, or DAT Speech (experimental) [Docs]. DAT Speech starts on our glasses [Verified on device, partial]. | DAT Speech, experimental (D17) |
+| Voice or button trigger | Hey Meta launches the app only; Inputs gated; Speech phrase in session possible [Docs] | Speech phrase plus phone button (D17); glasses tap via MediaSession untested |
+| Person identification | Policy-gated, no Meta matcher [Docs]. Muse Spark comparison works in dev testing [Verified on device, partial]. | `MuseIdentity`, dev builds only (D12); never presented as Meta-approved |
 | Memory storage | Caregiver records on the phone | Live (app logic) |
-| Label reading and bottle check | Muse Spark image understanding plus structured output [Docs]. Accuracy [Unknown] | Live after the 20-frame test (PRD check 3) |
-| Muse access | HTTPS, key from dashboard; region claims conflict (section 10) | Live; confirm our key works from the team's network |
+| Label reading and bottle check | Muse Spark image understanding plus structured output [Docs]. Accuracy on our bottles not recorded. | Built (D14); frozen (D20); 20-frame test not recorded |
+| Muse access | HTTPS, key from dashboard; region claims conflict (section 10). Our key works [Verified on device]. | Live |
 | Dose scheduling | Android alarms (host OS) | Live; OS feature, confirm under D5 |
 | Caregiver alerts | WhatsApp Cloud API, approved template, token problem (section 5) | Live or mock; see Q13 |
 | Face blur before Muse | No Meta tool found | Send only close-up bottle frames; never send faces |
@@ -192,17 +194,17 @@ Mirrors the PRD table. Detail and sources are in sections 3 to 6.
 Wearer        Glasses              Android phone (Myst)                       Meta cloud
  "Hey Meta,   mic/HFP --------->   DAT Speech or Muse Voice Transcribe ------> STT (wss)
   start Myst"  camera  --------->   DAT photo capture (one per request)
-                                    identity interface (mock until approved)
+                                    identity interface (MuseIdentity, D12 dev only)
                                     caregiver records (on phone, family-written)
                                     Muse Spark: label read / phrasing ---------> api.meta.ai/v1
                                     guard: uncertainty, source records, 20 words
- whisper <--- speaker A2DP <-----   Android audio output (TTS source per Q11)
+ whisper <--- speaker A2DP <-----   Android TextToSpeech (OS, D17)
                                     WhatsApp template alert ------------------> Graph API
 ```
 
 Requirement impact (full list in `hub/PRD.md`):
 - **R1 (3 s):** trigger plus capture plus identity plus Muse plus speech in series is unproven. Measure on device first (`hub/LOOP.md` spike).
-- **R3 and R4:** identity mock plus a "not sure" path; never present the mock as recognition.
+- **R3 and R4:** `MuseIdentity` (D12) plus a "not sure" path; never present it as Meta-approved.
 - **R5:** no retention is achievable on our side; never persist frames. Blur has no Meta tool.
 - **R7 and R8:** two independent Muse Spark reads (for example `1.3` and `1.2`, or a SAM 3.1 label crop then a read) with structured output and a rule that any disagreement means "ask her to turn the bottle". Use a still photo, not LOW video; label text is small. The agreement rule is Q4's human call.
 - **R13 and R20:** WhatsApp template plus Q13.
@@ -210,14 +212,16 @@ Requirement impact (full list in `hub/PRD.md`):
 
 ## 9. Verify on the device (extends the spike in `hub/LOOP.md`)
 
-1. Which glasses we own, firmware and Meta AI app versions.
-2. Developer Mode registration works; `CAPABILITY_DENIED` rate.
-3. One photo: size, format, request-to-bytes time over 20 runs.
-4. A2DP playback of a fixed phrase: clarity and call-to-sound time; cost of switching to HFP and back.
+Done items record their result in `AGENTS.md` "Verified implementation facts".
+
+1. Which glasses we own, firmware and Meta AI app versions. Partly: Meta AI app 295.0.0.37.164, Bluetooth name RB Meta 02WM; model and firmware open.
+2. Developer Mode registration works (done); `CAPABILITY_DENIED` rate not counted.
+3. One photo: size, format, request-to-bytes time over 20 runs. Partly: 76-102 KB JPEG; not timed.
+4. A2DP playback of a fixed phrase: clarity and call-to-sound time; cost of switching to HFP and back. Partly: audible, not timed.
 5. Voice Invocation "Hey Meta, start Myst": does it reach the app in Developer Mode or a release channel?
-6. Speech: where it runs, accuracy on "Who is this?" in a noisy room; compare Muse Voice Transcribe.
+6. Speech: where it runs, accuracy on "Who is this?" in a noisy room; compare Muse Voice Transcribe. Partly: session starts; phrase accuracy not measured.
 7. Muse Spark with a bottle photo: right and wrong bottles, structured verdict, 20 trials.
-8. Muse Spark behavior when shown a person and asked to compare to a reference photo (informational only; see section 6).
+8. Muse Spark behavior when shown a person and asked to compare to a reference photo (see section 6). Partly: 5 of 5 matches; strangers and no-face not run.
 9. Model API request retention and training terms; our key's region eligibility.
 10. WhatsApp: template approval time, test recipient list, delivery to Robert's phone.
 

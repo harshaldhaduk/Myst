@@ -2,7 +2,7 @@
 
 > **Refined by `hub/META_SUITE.md` (2026-10-24, D11).** Meta's own docs now confirm or change these points: (1) the Meta Model API docs are read: Muse Spark does images, structured output and tools, and Muse Voice Transcribe is confirmed (speech to text only; there is no Muse text-to-speech); (2) DAT 1.0 has Voice Invocations ("Hey Meta, start <app>", launch only), Inputs (button events, needs Meta approval) and experimental Speech, so "no button or voice event" in section 4 is out of date, though custom commands such as "who is this" still do not exist; (3) photo capture returns Bitmap or HEIC and standalone capture is experimental; (4) the $50 credit figure is the track's, not Meta's pricing page. The loop and the spike below stand.
 
-Everything else (faces, assistant, objects, medication) rides on this. Status: **docs read 2026-10-24, nothing run on a device.** Sources are Meta's Wearables Device Access Toolkit (DAT) docs unless marked "third-party"; treat third-party items as unverified. Proposed as D9.
+Everything else (faces, assistant, objects, medication) rides on this. Status: **docs read 2026-10-24; spike steps 1-3 and 5 partly run on the real glasses (section 5 results).** Sources are Meta's Wearables Device Access Toolkit (DAT) docs unless marked "third-party"; treat third-party items as unverified. Proposed as D9.
 
 ## 1. The path
 
@@ -66,5 +66,18 @@ Stop at the first step that fails and record it here.
 4. Trigger to speech round trip with no Muse: capture -> log -> "got it". Record median over 20 runs.
 5. Add one Muse Spark call with the photo ("describe the image in six words"). Record cost per call and median latency over 20 runs.
 6. Try the HFP mic and one Muse Voice Transcribe call. Record the A2DP-to-HFP switch cost.
+
+Results so far (S23 Ultra, Meta AI app 295.0.0.37.164, glasses RB Meta 02WM, firmware not recorded; source `hub/status/kchperla.md`, `hub/status/rjpaidi.md`):
+
+| Step | Result |
+|---|---|
+| 1 | Pass: Meta's sample and Myst ran with Mock Device Kit on an emulator (one mock capture 253 ms; emulator number only). |
+| 2 | Pass, partly: photos arrive from the real glasses (76-102 KB JPEG). Model not recorded; capture not timed (about 0.5 s by feel in the sample). |
+| 3 | Pass, partly: phone audio heard on the glasses; call-to-sound not timed. |
+| 4 | Not run (no 20-run median). |
+| 5 | Pass, partly: Muse Spark answered a glasses photo correctly; 0.98 s with `reasoning_effort: minimal` (one run); face-match calls 1.5-2.5 s (5 runs). Cost per call not recorded. |
+| 6 | Partly: HFP gave one silent and one good clip. Muse Voice Transcribe not tried; DAT Speech used instead (D17). |
+
+Section 4 problems 1 and 2 are answered by D17 (Proposed): DAT Speech phrase plus phone button, Android TTS. Problem 4 (screen-off) is still unverified.
 
 Record results in the owning lane's `hub/status/` file and in `AGENTS.md` "Verified implementation facts" only after they ran on the real device.

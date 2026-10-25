@@ -217,32 +217,32 @@ These are **hard release gates** independent of the 100-point score. Any failure
 
 | Item | State (`PASS`/`FAIL`/`PENDING`) | Evidence (file/test/video timestamp) | Owner / next action |
 |---|---|---|---|
-| H1 | PENDING | — | — |
-| H2 | PENDING | — | — |
-| H3 | PENDING | — | — |
-| H4 | PENDING | — | — |
-| H5 | PENDING | — | — |
-| H6 | PENDING | — | — |
-| A1 | PENDING | — | — |
-| A2 | PENDING | — | — |
-| A3 | PENDING | — | — |
-| A4 | PENDING | — | — |
-| A5 | PENDING | — | — |
-| O1 | PENDING | — | — |
-| O2 | PENDING | — | — |
-| O3 | PENDING | — | — |
-| O4 | PENDING | — | — |
-| E1 | PENDING | — | — |
-| E2 | PENDING | — | — |
-| E3 | PENDING | — | — |
-| E4 | PENDING | — | — |
-| E5 | PENDING | — | — |
+| H1 | FAIL | No script or video yet. | Lane 5: write the 25-30 s opening. |
+| H2 | FAIL | No demo clip of Margaret turning to Daniel. | Lane 5: film after E2 runs. |
+| H3 | PENDING | Built: `Person.memories` -> `FamiliarFaces.whisperFor` -> `ResponseGuard`. No recorded record-to-output trace. | Lane 2: log one run with record id and spoken line. |
+| H4 | PENDING | Built: DAT Speech phrase, phone button, glasses tap (tap untested on glasses). Audio on glasses for this build not recorded. | Lane 2: record one on-glasses run. |
+| H5 | PENDING | Built: Setup > Family (consent, memories add/delete/reorder, revoke deletes record, photo, visits). Revoke not re-checked on a phone with the D19 build. | Lane 4: revoke-then-ask test on the phone. |
+| H6 | FAIL | No judge-facing statement or clip. | Lane 5. |
+| A1 | PENDING | Built: `MuseIdentity` (D12). Status file: 5 of 5 match verdicts, 2 with two enrolled; log holds Muse's verdict, not ground truth. | Lane 2: logged run with a second enrolled person. |
+| A2 | PENDING | Path built end to end; no timestamped trace or video. | Lane 2: capture one trace. |
+| A3 | FAIL | Follow-up "What did we talk about last time?" not built. | Lane 2: build or cut from the story. |
+| A4 | FAIL | No stranger, no-face or no-memory trials. On `main` a Muse failure says "not sure" (D21 in flight). | Lane 2: 3/3 negatives after D21. |
+| A5 | FAIL | No architecture walkthrough or narration. Inputs: `hub/META_SUITE.md` section 8, `hub/PRD.md` section 2. | Lane 5. |
+| O1 | FAIL | Differentiator sentence exists (section 1); no matching video scene. | Lane 5. |
+| O2 | FAIL | 3-row comparison not written. | Lane 5. |
+| O3 | FAIL | No wearer POV footage. | Lane 5. |
+| O4 | FAIL | No walkthrough yet. Scope narrowed to Familiar Faces for the demo (D20). | Lane 5. |
+| E1 | FAIL | No filmed run; no demo reset. | Lanes 2, 5. |
+| E2 | FAIL | No 5-run log, no negative tests, no reset, no unit tests (D13 not adopted). | Lane 2. |
+| E3 | FAIL | Video not recorded. | Lane 5. |
+| E4 | PENDING | Real glasses capture and Muse calls (status files); mocks and experimental parts labeled in `core/Capability.kt` and on Home. MockIdentity removed and key out of the APK (D21, D22, ef9d32c); lint 0 errors. | Lane 2: run D21/D22 on the device. |
+| E5 | FAIL | No operator script, no reset, no recorded fallback. | Lane 5. |
 
 **Hard-gate status:** G01–G10 = `NOT VERIFIED` until every item is checked against evidence.
 
 **Submission status:** S01–S06 = `NOT VERIFIED` until every item is checked against evidence.
 
-**Self-score:** `5 × count(PASS among H1–H6, A1–A5, O1–O4, E1–E5) = __/100`.
+**Self-score:** `5 × count(PASS among H1–H6, A1–A5, O1–O4, E1–E5) = 0/100` (2026-10-25).
 
 **Ready-state formula:**
 
@@ -256,9 +256,9 @@ JUDGING-READY =
 ELSE: NOT JUDGING-READY; name the exact blockers.
 ```
 
-**Last audit:** `NOT RUN`  
-**Verified models/API calls:** `NOT VERIFIED`  
-**Verified glasses hardware flow:** `NOT VERIFIED`  
+**Last audit:** `2026-10-25 02:05, docs against main 4289fc2, Claude Code (status files, no new device run)`  
+**Verified models/API calls:** `PARTIAL: muse-spark-1.3 calls recorded in hub/status/ (no inspectable trace)`  
+**Verified glasses hardware flow:** `PARTIAL: capture, Speech start, A2DP, MuseIdentity matches recorded in hub/status/; see AGENTS.md`  
 **Verified end-to-end live demo:** `NOT VERIFIED`  
 **Final submission video:** `NOT RECORDED / NOT VERIFIED`
 

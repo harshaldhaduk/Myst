@@ -8,6 +8,12 @@ Updated <HH:MM> by <tool>
 **In flight**
 - 
 
+**Verified on device** (date, phone, Meta AI app, glasses firmware)
+- 
+
+**Gaps**
+- 
+
 **Blocked, or need from someone**
 - 
 

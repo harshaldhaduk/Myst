@@ -2,11 +2,13 @@
 
 Updated 22:45 by Claude Code
 
-**Code lives on branch `rjpaidi/glasses-enroll`** (not merged to main yet). RJ and Claude Code are actively working Lanes 2-4, including **Lane 3 Medication Routine**; please coordinate before starting on those files.
+Corrected 02:05 by Claude Code at Mayank's request: this branch's work is merged to `main` (via `kchperla/ui-redesign`, 4289fc2); Demo Controls, the MockIdentity picker and "Remind now" are gone from the screen (D19); Lane 3 is frozen for the demo (D20); MockIdentity removal is in flight under D21 (Mayank). Device results below are unchanged.
+
+**Code is merged to `main`** (correction 02:05; this line used to say the branch was unmerged). RJ and Claude Code are actively working Lanes 2-4, including **Lane 3 Medication Routine**; please coordinate before starting on those files.
 
 Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 1. Coordinate before merging; if kchperla's spike lands first, swap its code in behind `GlassesGateway`.
 
-**Shipped** (branch `rjpaidi/glasses-enroll`, not merged, not pushed)
+**Shipped** (now on `main`; wording below is from before the D19 redesign)
 - `app/`: Android project on DAT 1.0.1, same dependencies as Meta's CameraAccess sample (Compose, Material3, AndroidX lifecycle, exifinterface). No new outside dependency.
 - `GlassesGateway` + `DatGlassesGateway`: registration through the Meta AI app, camera permission, one photo per request on a new session (stream at MEDIUM/15 fps, `stream.capturePhoto()`, the non-experimental path), shutdown `camera.stop()` then `session.stop()`. PAUSED and `CAPABILITY_DENIED` are returned as normal outcomes.
 - `MockGlassesKit`: DAT Mock Device Kit glasses, labeled MOCK.
@@ -44,11 +46,12 @@ Lane overlap: this branch includes a DAT capture path, which is kchperla's Lane 
 - The Mock Device Kit refuses to stream without `setCameraFeed(...)` ("No camera source configured"), even for a single photo. The feed is Meta's `plant.mp4` sample clip in `app/app/src/debug/assets` (debug builds only).
 
 **In flight**
+- Frozen for the demo period (D20, correction 02:05): the next steps below are paused, not cancelled.
 - Lane 3 Medication Routine (claimed 18:55, RJ + Claude Code): done so far: records, setup tabs, bottle test, reminders. Next: routine state machine + tests (needs D13), voice "Done"/"Is this right?", room/food/water checks (D15). Was: slice 1 records (Place, Medication, Event) and caregiver setup tabs; then routine state machine + tests, glasses wiring, bottle check (reference match + label read), room/food/water checks.
 
 **Blocked, or need from someone**
-- Real-glasses run: needs the S23 Ultra and glasses (kchperla) or another Android phone. This Mac has no Android phone attached.
-- Face identification: D12 (Proposed by RJ) would allow it for private dev testing without Meta's AUP exception. Needs a human to mark D12 Accepted. Meta approval (D7, Q2) and Q12 remain unanswered.
+- Real-glasses runs since happened on the S23 Ultra (see Verified). Still not run: stranger and no-face trials, bottle check on real bottles.
+- Face identification: D12 is Accepted (RJ, 18:40) for private dev testing without Meta's AUP exception (correction 02:05). Meta approval (D7, Q2) and Q12 remain unanswered.
 - Lane 2 should confirm that storing a consented reference photo on the phone fits "no frames retained" (it is enrollment data, not a live frame).
 
 **Files I am working in right now**

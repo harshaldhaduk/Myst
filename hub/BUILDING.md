@@ -1,6 +1,6 @@
 # Building Myst
 
-Read `AGENTS.md`, `PROJECT_CONTEXT.md`, `hub/DECISIONS.md`, `hub/PRD.md`, `hub/META_SUITE.md`, `hub/LOOP.md`, and every status file. The stack is Meta and Muse tools only; the product is mostly unbuilt, so the first job is learning what the platform allows.
+Read `AGENTS.md`, `PROJECT_CONTEXT.md`, `hub/DECISIONS.md`, `hub/PRD.md`, `hub/META_SUITE.md`, `hub/LOOP.md`, and every status file. The stack is Meta and Muse tools only. The app on `main` runs on the real glasses; what is built and missing is in the PRD section 4 status column. Follow "Keep the docs true" in `AGENTS.md` on every slice.
 
 ## Before each slice
 
@@ -33,6 +33,6 @@ Before writing any capability:
 
 Run whatever checks the platform's project template provides, plus any tests you add. A simulator or emulator proves wiring, not a real device. For anything about the glasses, record in your status what was run on the real hardware and what was not. Documentation-only changes need fact checks against the docs, not a device run.
 
-Before pushing: sync and integrate, recheck affected behavior, update your own status, append proposed cross-lane or product decisions, stage only your files, and push without rewriting main. If a rebase conflicts, preserve the other lane's intent and reapply your change; ask when the intent is unclear.
+Before pushing: sync and integrate, recheck affected behavior, update your own status and every doc your change made false (`AGENTS.md` "Keep the docs true"), append proposed cross-lane or product decisions, stage only your files, and push without rewriting main. If a rebase conflicts, preserve the other lane's intent and reapply your change; ask when the intent is unclear.
 
 Keep docs short: current facts, target behavior, integration constraints and remaining gaps. Do not reproduce chat history, invent delivery estimates, or turn proposed requirements into completed features.

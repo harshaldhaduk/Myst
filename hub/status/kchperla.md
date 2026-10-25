@@ -2,10 +2,12 @@
 
 Updated 16:38 by Claude Code
 
+Corrected 02:05 by Claude Code at Mayank's request: the branches below are merged to `main` (4289fc2); "Load demo data" and "Demo: seen 5 h ago" were removed (450a1b3, D19); "Shipped: nothing in the product yet" is out of date; the spike steps are recorded in `hub/LOOP.md` section 5.
+
 Lane choice is provisional: taken because this person has the phone and glasses. Confirm with the team that no one else owns Lane 1.
 
 **Shipped**
-- Nothing in the product yet.
+- On `main`: visit memory (D18), memory entry, two-tab redesign (D19); see In flight for detail (correction 02:05).
 - Phone reachable over adb (USB debugging authorized). Samsung Galaxy S23 Ultra (SM-S918U1), Android 16 (API 36). Meta AI app (com.facebook.stella) version 295.0.0.37.164. Facts about the phone only; checked with adb on 2026-10-24, not on the glasses.
 
 **Verified on the real glasses (2026-10-24, Meta's CameraAccess sample, not our app)**
@@ -28,16 +30,16 @@ Lane choice is provisional: taken because this person has the phone and glasses.
 - Visit memory (branch `kchperla/visit-memory`, D18 Proposed): remember when each enrolled person was last recognized, and add "You saw Daniel at 1 PM." to the next whisper. Touches RJ's files `features/faces/FamiliarFaces.kt`, `core/records/HouseholdStore.kt`, `core/records/Schema.kt` (no new event kind; uses VISIT) and `ui/EnrollViewModel.kt` / `ui/EnrollScreen.kt` (one demo control). Coordinate with RJ before merging.
   - Built: `core/records/VisitMemory.kt` (encounter rule, wording, 20-word composer, 30-day expiry), `HouseholdStore.logSighting/sightings/deleteSightings`, `FamiliarFaces` (reads earlier sightings, then logs a match), revoke deletes sightings, Family tab shows "Last recognized", demo button "Demo: seen 5 h ago".
   - Checked: app compiles (assembleDebug). 23 scenario checks of `VisitMemory` ran on the JVM through a throwaway harness outside the repo (1 PM then 6 PM, repeat ask in one meeting, 7 days silent, midnight crossing, word limit, expiry): all pass. No JUnit in the repo yet (D13 Proposed), so these are not committed as tests.
-  - Demo data: button "Load demo data (fictional)" adds Daniel (son) and Emily (granddaughter) with one memory and an earlier sighting each, consent "Robert (demo data)", no photos (so mock identity only). Skips names already enrolled.
+  - Removed since (450a1b3): demo data button "Load demo data (fictional)" adds Daniel (son) and Emily (granddaughter) with one memory and an earlier sighting each, consent "Robert (demo data)", no photos (so mock identity only). Skips names already enrolled.
   - Memory entry (branch `kchperla/memory-entry`): caregiver can add, delete and reorder memories on each person's row in the Family tab. `PeopleStore.addMemory/removeMemory/makeFirstMemory` rewrite the record through the existing atomic write; list edits are pure `Person.withMemory/withoutMemory/withMemoryFirst`. A new memory is checked with `ResponseGuard` at entry (banned phrases, questions, other family names, over 20 words are refused), max 5 per person and 140 characters, author is whoever recorded consent. The first memory is the one spoken.
   - Checked: 21 scenario checks on the JVM against the real `Schema.kt`, `VisitMemory.kt`, `ResponseGuard.kt` and a real org.json (not Android's): JSON round trip incl. quotes, newline, unicode and emoji, an old record with no memories key, remove, make-first, out-of-range indexes, guard refusals, and the final spoken line. Not checked: the file write on a phone, and the screen.
   - Not yet run on a device: store writes, revoke cleanup, and the spoken line through the glasses.
-- Spike from hub/LOOP.md section 5, step 1: build the DAT Android sample and run it with Mock Device Kit, then on the real glasses.
+- Spike from hub/LOOP.md section 5: steps 1-3 and 5 partly done; results in LOOP.md (correction 02:05).
 
 **Blocked, or need from someone**
 - Exact glasses model not yet recorded (Q1). Developer mode is reported on by the user; not yet verified in the app.
-- Muse Spark API key for spike step 5: goes in ignored .env (MUSE_API_KEY, empty file created); where hackathon credits are issued is unknown.
-- Human call on Q3 (trigger, Android TTS under D5) and Q10 (scope conflict).
+- Muse Spark key: in ignored `.env` and working (correction 02:05); D22 moves it out of the APK.
+- Human call on D17 (trigger and Android TTS, Proposed) and D20 (scope freeze, Proposed).
 
 **Files I am working in right now**
 - hub/status/kchperla.md
